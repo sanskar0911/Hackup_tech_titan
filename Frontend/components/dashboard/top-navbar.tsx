@@ -21,17 +21,23 @@ export function TopNavbar() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [alerts, setAlerts] = useState<any[]>([])
+  const [highRiskAccounts, setHighRiskAccounts] = useState<any[]>([])
 
   useEffect(() => {
     setMounted(true)
     const loadAlerts = async () => {
       try {
         const { fraudApi } = await import("@/lib/api-service")
-        const fetched = await fraudApi.getAlerts()
         
-        // Filter out closed ones usually, but here we just take the highest risk ones
-        const sorted = (fetched as any[]).sort((a, b) => b.riskScore - a.riskScore).slice(0, 4)
-        setAlerts(sorted)
+        // Load Alerts
+        const fetchedAlerts = await fraudApi.getAlerts()
+        const sortedAlerts = (fetchedAlerts as any[]).sort((a, b) => b.riskScore - a.riskScore).slice(0, 4)
+        setAlerts(sortedAlerts)
+
+        // Load High Risk Accounts
+        const fetchedAccounts = await fraudApi.getAccounts()
+        const filtered = (fetchedAccounts as any[]).filter(acc => acc.riskScore >= 85)
+        setHighRiskAccounts(filtered)
       } catch (err) {
         console.error(err)
       }
@@ -69,21 +75,48 @@ export function TopNavbar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
               <Bell className="h-5 w-5" />
-              {alerts.length > 0 && (
+              {(alerts.length > 0 || highRiskAccounts.length > 0) && (
                 <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                  {alerts.length}
+                  {alerts.length + highRiskAccounts.length}
                 </span>
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
+          <DropdownMenuContent align="end" className="w-80 max-h-[500px] overflow-y-auto">
+            {highRiskAccounts.length > 0 && (
+              <>
+                <DropdownMenuLabel className="text-destructive flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  High Risk Accounts (≥85%)
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {highRiskAccounts.map((account, idx) => (
+                  <div key={`acc-${idx}`} className="px-2 py-1.5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">{account.id}</span>
+                      <span className="text-xs font-bold text-destructive">Score: {account.riskScore}%</span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="w-full h-7 text-xs border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => router.push(`/investigation?id=${account.id}`)}
+                    >
+                      Investigate Account
+                    </Button>
+                  </div>
+                ))}
+                <DropdownMenuSeparator />
+              </>
+            )}
+
             <DropdownMenuLabel>Highest Risk Alerts</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {alerts.length > 0 ? alerts.map((alert, idx) => (
               <DropdownMenuItem 
-                key={idx} 
+                key={`alert-${idx}`} 
                 className="flex flex-col items-start gap-1 cursor-pointer"
-                onClick={() => router.push(`/fund-flow`)}
+                onClick={() => router.push(`/fund-flow?accountId=${alert.accountId}`)}
               >
                 <div className="flex w-full justify-between items-center">
                   <span className="font-medium text-destructive">{alert.type || "Suspicious Activity"}</span>
