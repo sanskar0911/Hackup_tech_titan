@@ -32,8 +32,8 @@ export function Sidebar() {
       <div className="flex h-full flex-col">
         {/* Logo */}
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Shield className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+            <Shield className="h-5 w-5 text-white" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-sidebar-foreground">FraudShield</span>

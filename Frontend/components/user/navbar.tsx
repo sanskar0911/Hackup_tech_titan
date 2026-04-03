@@ -28,11 +28,11 @@ export function UserNavbar() {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 transition-all group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white">
               <Landmark className="h-5 w-5" />
             </div>
             <span className="text-xl font-bold tracking-tight hidden sm:block">
-              Fraud<span className="text-primary">Shield</span> <span className="text-muted-foreground font-light text-sm ml-1">User</span>
+              Fraud<span className="text-blue-600">Shield</span> <span className="text-muted-foreground font-light text-sm ml-1">User</span>
             </span>
           </div>
 
@@ -72,7 +72,7 @@ export function UserNavbar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 pr-1 pl-1 rounded-full hover:bg-accent">
                 <Avatar className="h-8 w-8 border border-border">
-                  <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                  <AvatarFallback className="bg-blue-100 text-blue-600 text-xs font-bold">
                     RK
                   </AvatarFallback>
                 </Avatar>

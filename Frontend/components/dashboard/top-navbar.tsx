@@ -139,7 +139,7 @@ export function TopNavbar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 px-2">
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground">
+                <AvatarFallback className="bg-blue-600 text-white">
                   <User className="h-4 w-4" />
                 </AvatarFallback>
               </Avatar>
