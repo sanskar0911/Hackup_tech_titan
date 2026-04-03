@@ -140,7 +140,7 @@ export const analyzeTransaction = async (tx, allTransactions = []) => {
   }
 
   // ================= HYBRID SCORING =================
-  let ruleBasedScore = 0.3 * ruleScore + 0.25 * behaviorScore + 0.25 * graphScore + 0.2 * anomalyScore;
+  let ruleBasedScore = ruleScore + behaviorScore + graphScore + anomalyScore;
 
   // ================= AI MODEL =================
   // Generate predictive AI score based on transaction heuristics
@@ -153,7 +153,7 @@ export const analyzeTransaction = async (tx, allTransactions = []) => {
   ]);
 
   // Combine Rule and ML Score
-  let finalScore = Math.round(0.6 * ruleBasedScore + 0.4 * mlScore * 100);
+  let finalScore = Math.round(ruleBasedScore + (mlScore * 100) * 0.5);
 
   // Time decay
   const decay = Math.exp(-(now - txTime) / (5 * 60 * 1000));

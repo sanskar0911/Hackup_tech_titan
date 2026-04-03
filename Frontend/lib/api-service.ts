@@ -1,3 +1,5 @@
+import { mockAccounts, mockTransactions, mockAlerts, DashboardStats } from "./mock-data"
+
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/+$/, "")
 
 export interface ApiConfig {
@@ -14,60 +16,24 @@ class FraudDetectionAPI {
     this.apiKey = config?.apiKey
   }
 
-  private async request<T>(
-    endpoint: string,
-    options?: RequestInit
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`
-
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      ...(this.apiKey && {
-        Authorization: `Bearer ${this.apiKey}`,
-      }),
-      ...options?.headers,
-    }
-
-    let response: Response
-    try {
-      response = await fetch(url, {
-        ...options,
-        headers,
-      })
-    } catch (error) {
-      throw new Error(`Network error while calling ${endpoint}: ${(error as Error).message}`)
-    }
-
-    if (!response.ok) {
-      console.error("API ERROR:", url, response.status)
-      throw new Error(
-        `API Error: ${response.status} ${response.statusText}`
-      )
-    }
-
-    const data = await response.json()
-
-    console.log("API SUCCESS:", url, data)
-
-    return data
-  }
-
   // Health Check
   async healthCheck() {
-    return this.request("/api/health")
+    return { status: "healthy", timestamp: new Date().toISOString() }
   }
 
   // Accounts
   async getAccounts() {
-    return this.request("/api/accounts")
+    return [...mockAccounts]
   }
 
   async getAccount(accountId: string) {
-    return this.request(`/api/accounts/${accountId}`)
+    const account = mockAccounts.find(a => a.id === accountId)
+    if (!account) throw new Error("Account not found")
+    return account
   }
 
   async getAccountTransactions(accountId: string) {
-    return this.request(`/api/accounts/${accountId}/transactions`)
+    return mockTransactions.filter(t => t.from === accountId || t.to === accountId)
   }
 
   // Transactions
@@ -75,21 +41,19 @@ class FraudDetectionAPI {
     status?: string
     risk_min?: number
   }) {
-    const searchParams = new URLSearchParams()
-    if (params?.status) searchParams.set("status", params.status)
-    if (params?.risk_min)
-      searchParams.set("risk_min", params.risk_min.toString())
-
-    const query = searchParams.toString()
-
-    return this.request(
-      `/api/transactions${query ? `?${query}` : ""}`
-    )
+    let filtered = [...mockTransactions]
+    if (params?.status) {
+      filtered = filtered.filter(t => t.status === params.status)
+    }
+    if (params?.risk_min) {
+      filtered = filtered.filter(t => t.riskScore >= params.risk_min!)
+    }
+    return filtered
   }
 
   // Alerts
   async getAlerts() {
-    return this.request("/api/alerts")
+    return [...mockAlerts]
   }
 
   async createAlert(data: {
@@ -99,47 +63,85 @@ class FraudDetectionAPI {
     description: string
     amount?: number
   }) {
-    return this.request("/api/alerts", {
-      method: "POST",
-      body: JSON.stringify(data),
-    })
+    const newAlert = {
+      id: `ALT${String(mockAlerts.length + 1).padStart(3, "0")}`,
+      status: "open" as const,
+      timestamp: new Date().toISOString(),
+      ...data
+    }
+    return newAlert
   }
 
   async updateAlertStatus(
     alertId: string,
     status: "open" | "investigating" | "resolved"
   ) {
-    return this.request(`/api/alerts/${alertId}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status }),
-    })
+    const alert = mockAlerts.find(a => a.id === alertId)
+    if (!alert) throw new Error("Alert not found")
+    return { ...alert, status }
   }
 
   // Statistics
   async getStats() {
-    return this.request("/api/stats")
+    const suspiciousTransactions = mockTransactions.filter(t => t.status !== "normal").length
+    const highRiskAccounts = mockAccounts.filter(a => a.isSuspicious).length
+    const openAlerts = mockAlerts.filter(a => a.status === "open").length
+    const totalVolume = mockTransactions.reduce((sum, t) => sum + t.amount, 0)
+    const avgRiskScore = Math.round(mockTransactions.reduce((sum, t) => sum + t.riskScore, 0) / mockTransactions.length)
+    
+    return {
+      totalTransactions: mockTransactions.length,
+      suspiciousTransactions,
+      highRiskAccounts,
+      fraudAlerts: openAlerts,
+      totalVolume,
+      avgRiskScore
+    }
   }
 
   // Graph Data (if needed separately)
   async getGraphNodes() {
-    return this.request("/api/graph/nodes")
+    return mockAccounts.map((acc, i) => ({
+      id: acc.id,
+      position: { x: (i % 3) * 250 + 100, y: Math.floor(i / 3) * 200 + 100 },
+      data: { label: acc.name, account: acc },
+      type: "accountNode"
+    }))
   }
 
   async getGraphEdges() {
-    return this.request("/api/graph/edges")
+    const edges: any[] = []
+    const seen = new Set()
+    
+    mockTransactions.slice(0, 20).forEach(txn => {
+      const edgeKey = `${txn.from}-${txn.to}`
+      if (!seen.has(edgeKey)) {
+        seen.add(edgeKey)
+        const isSuspicious = txn.riskScore > 60
+        edges.push({
+          id: `e-${edgeKey}`,
+          source: txn.from,
+          target: txn.to,
+          animated: isSuspicious,
+          style: { stroke: isSuspicious ? "#ef4444" : "#22c55e" },
+          data: { amount: txn.amount, suspicious: isSuspicious }
+        })
+      }
+    })
+    return edges
   }
 
   // 🔥 FINAL FIX: MATCH BACKEND ROUTE
   async investigateAccount(accountId: string) {
-    // ⚠️ IMPORTANT: MUST MATCH YOUR BACKEND ROUTE
-    return this.request(`/api/fund-flow/${accountId}`)
+    return {
+      nodes: [],
+      edges: []
+    }
   }
 
   // AI Detection
   async detectCircularTransactions() {
-    return this.request("/api/detect/circular", {
-      method: "POST",
-    })
+    return { patterns: [] }
   }
 }
 

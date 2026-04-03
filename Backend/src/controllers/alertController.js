@@ -1,4 +1,5 @@
 import Alert from "../models/Alert.js";
+import { sendDirectEmail } from "../services/emailService.js";
 
 // =====================================================
 // ✅ GET ALL ALERTS
@@ -70,5 +71,25 @@ export const simulateUserResponse = async (req, res) => {
   } catch (error) {
     console.error("User Response Error:", error);
     res.status(500).json({ message: "Failed to simulate response" });
+  }
+};
+
+// =====================================================
+// ✅ SEND DIRECT EMAIL
+// =====================================================
+export const sendAlertDirectEmail = async (req, res) => {
+  try {
+    const { to, subject, text } = req.body;
+    
+    if (!to || !subject || !text) {
+      return res.status(400).json({ message: "Missing required fields: to, subject, text" });
+    }
+
+    await sendDirectEmail(to, subject, text);
+
+    res.json({ success: true, message: "Email sent successfully" });
+  } catch (error) {
+    console.error("Email Sending Error:", error);
+    res.status(500).json({ message: "Failed to send email" });
   }
 };

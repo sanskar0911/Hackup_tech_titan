@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { mockTransactions, type Transaction } from "@/lib/mock-data"
+import { fraudApi } from "@/lib/api-service"
 import {
   Search,
   Filter,
@@ -34,20 +34,36 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const statusConfig: Record<
-  Transaction["status"],
-  { icon: typeof CheckCircle; label: string; color: string }
-> = {
-  normal: { icon: CheckCircle, label: "Normal", color: "bg-success/10 text-success" },
-  suspicious: { icon: AlertCircle, label: "Suspicious", color: "bg-warning/10 text-warning" },
-  flagged: { icon: AlertTriangle, label: "Flagged", color: "bg-destructive/10 text-destructive" },
+export interface Transaction {
+  id: string;
+  from: string;
+  to: string;
+  amount: number;
+  type: string;
+  status: "normal" | "suspicious" | "flagged" | string;
+  riskScore: number;
+  timestamp: string;
 }
 
-const typeLabels: Record<Transaction["type"], string> = {
+const statusConfig: any = {
+  normal: { icon: CheckCircle, label: "Normal", color: "bg-success/10 text-success" },
+  LOW: { icon: CheckCircle, label: "Normal", color: "bg-success/10 text-success" },
+  COMPLETED: { icon: CheckCircle, label: "Completed", color: "bg-success/10 text-success" },
+  PENDING: { icon: CheckCircle, label: "Pending", color: "bg-success/10 text-success" },
+  suspicious: { icon: AlertCircle, label: "Suspicious", color: "bg-warning/10 text-warning" },
+  MEDIUM: { icon: AlertCircle, label: "Suspicious", color: "bg-warning/10 text-warning" },
+  flagged: { icon: AlertTriangle, label: "Flagged", color: "bg-destructive/10 text-destructive" },
+  HIGH: { icon: AlertTriangle, label: "Flagged", color: "bg-destructive/10 text-destructive" },
+  FAILED: { icon: AlertTriangle, label: "Failed", color: "bg-destructive/10 text-destructive" },
+  BLOCKED: { icon: AlertTriangle, label: "Blocked", color: "bg-destructive/10 text-destructive" },
+}
+
+const typeLabels: Record<string, string> = {
   UPI: "UPI",
   NEFT: "NEFT",
   IMPS: "IMPS",
   RTGS: "RTGS",
+  Card: "Card",
 }
 
 export default function TransactionsPage() {
@@ -55,7 +71,31 @@ export default function TransactionsPage() {
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
 
-  const filteredTransactions = mockTransactions.filter((txn) => {
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+
+  useEffect(() => {
+    const loadTransactions = async () => {
+      try {
+        const data: any[] = await fraudApi.getTransactions() as any[];
+        const mapped: Transaction[] = data.map((d: any) => ({
+          id: d.transactionId || d.id || "",
+          from: d.senderId || d.from || "",
+          to: d.receiverId || d.to || "",
+          amount: d.amount || 0,
+          type: d.type || "UPI",
+          status: d.riskLevel || d.status || "COMPLETED",
+          riskScore: d.fraudScore ?? d.riskScore ?? 0,
+          timestamp: d.createdAt || d.timestamp || new Date().toISOString(),
+        }));
+        setTransactions(mapped);
+      } catch (err) {
+        console.error("Failed to load transactions", err);
+      }
+    }
+    loadTransactions();
+  }, []);
+
+  const filteredTransactions = transactions.filter((txn) => {
     if (statusFilter !== "all" && txn.status !== statusFilter) return false
     if (typeFilter !== "all" && txn.type !== typeFilter) return false
     if (
@@ -68,11 +108,11 @@ export default function TransactionsPage() {
     return true
   })
 
-  const totalVolume = mockTransactions.reduce((sum, txn) => sum + txn.amount, 0)
-  const suspiciousCount = mockTransactions.filter((t) => t.status !== "normal").length
-  const avgRisk = Math.round(
-    mockTransactions.reduce((sum, txn) => sum + txn.riskScore, 0) / mockTransactions.length
-  )
+  const totalVolume = transactions.reduce((sum, txn) => sum + txn.amount, 0)
+  const suspiciousCount = transactions.filter((t) => t.status !== "normal" && t.status !== "COMPLETED" && t.status !== "LOW").length
+  const avgRisk = transactions.length > 0 ? Math.round(
+    transactions.reduce((sum, txn) => sum + txn.riskScore, 0) / transactions.length
+  ) : 0
 
   return (
     <div className="space-y-6">
@@ -95,7 +135,7 @@ export default function TransactionsPage() {
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Transaction Count</p>
             <p className="text-2xl font-bold text-card-foreground">
-              {mockTransactions.length}
+              {transactions.length}
             </p>
           </CardContent>
         </Card>
@@ -153,6 +193,7 @@ export default function TransactionsPage() {
                 <SelectItem value="NEFT">NEFT</SelectItem>
                 <SelectItem value="IMPS">IMPS</SelectItem>
                 <SelectItem value="RTGS">RTGS</SelectItem>
+                <SelectItem value="Card">Card</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -186,7 +227,8 @@ export default function TransactionsPage() {
             </TableHeader>
             <TableBody>
               {filteredTransactions.map((txn) => {
-                const StatusIcon = statusConfig[txn.status].icon
+                const config = statusConfig[txn.status] || statusConfig.normal
+                const StatusIcon = config.icon
                 return (
                   <TableRow key={txn.id} className="border-border">
                     <TableCell className="font-mono text-sm">{txn.id}</TableCell>

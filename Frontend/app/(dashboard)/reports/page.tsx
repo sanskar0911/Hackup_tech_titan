@@ -13,18 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { mockAccounts, mockAlerts, mockDashboardStats, mockTransactions, type Alert } from "@/lib/mock-data"
-import {
-  FileText,
-  Download,
-  Calendar,
-  TrendingUp,
-  AlertTriangle,
-  Users,
-  DollarSign,
-  PieChart,
-  FileDown,
-  Printer,
-} from "lucide-react"
+import { FileText, Calendar, TrendingUp, AlertTriangle, Users, DollarSign, FileDown, Printer } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const reportTypes = [
@@ -112,6 +101,61 @@ export default function ReportsPage() {
             : 0,
       }
     : mockDashboardStats
+
+  const downloadUserReport = (accountId: string) => {
+    const account = mockAccounts.find((a) => a.id === accountId)
+    if (!account) return
+    const transactions = mockTransactions.filter((t) => t.from === accountId || t.to === accountId)
+    const alerts = alertsOverride.filter((a) => a.accountId === accountId)
+    const lines = [
+      `User Report: ${account.name} (${account.id})`,
+      `Emails: ${(account.contactEmails || []).join(", ")}`,
+      `Risk Score: ${account.riskScore}%`,
+      `Suspicious: ${account.isSuspicious ? "Yes" : "No"}`,
+      `Total Transactions: ${transactions.length}`,
+      `Total Alerts: ${alerts.length}`,
+      "",
+      "Recent Alerts:",
+      ...alerts.slice(0, 5).map((a) => `- ${a.id} | ${a.type} | ${a.riskScore}% | ${a.status}`),
+    ]
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `report-${accountId}.txt`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const printUserReport = (accountId: string) => {
+    const account = mockAccounts.find((a) => a.id === accountId)
+    if (!account) return
+    const alerts = alertsOverride.filter((a) => a.accountId === accountId)
+    const html = `
+      <html>
+        <head><title>Report ${account.id}</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 24px;">
+          <h2>User Report: ${account.name} (${account.id})</h2>
+          <p><strong>Emails:</strong> ${(account.contactEmails || []).join(", ")}</p>
+          <p><strong>Risk Score:</strong> ${account.riskScore}%</p>
+          <p><strong>Country:</strong> ${account.country}</p>
+          <h3>Recent Alerts</h3>
+          <ul>
+            ${alerts
+              .slice(0, 6)
+              .map((a) => `<li>${a.id} - ${a.type.replace(/_/g, " ")} - ${a.riskScore}% - ${a.status}</li>`)
+              .join("")}
+          </ul>
+        </body>
+      </html>`
+    const popup = window.open("", "_blank", "width=900,height=700")
+    if (!popup) return
+    popup.document.open()
+    popup.document.write(html)
+    popup.document.close()
+    popup.focus()
+    popup.print()
+  }
 
   return (
     <div className="space-y-6">
@@ -311,6 +355,12 @@ export default function ReportsPage() {
                       <th className="px-4 py-2 text-left text-muted-foreground font-medium">
                         Risk Score
                       </th>
+                      <th className="px-4 py-2 text-left text-muted-foreground font-medium">
+                        User Emails
+                      </th>
+                      <th className="px-4 py-2 text-left text-muted-foreground font-medium">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -322,6 +372,30 @@ export default function ReportsPage() {
                         <td className="px-4 py-2">{account.country}</td>
                         <td className="px-4 py-2">
                           <span className="text-destructive font-semibold">{account.riskScore}%</span>
+                        </td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground">
+                          {(account.contactEmails || []).join(", ")}
+                        </td>
+                        <td className="px-4 py-2">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => downloadUserReport(account.id)}
+                            >
+                              <FileDown className="h-3.5 w-3.5" />
+                              Download
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => printUserReport(account.id)}
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                              Print
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

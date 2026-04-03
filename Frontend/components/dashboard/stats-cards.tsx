@@ -51,7 +51,7 @@ function StatCard({ title, value, change, changeLabel, icon: Icon, variant = "de
   }
 
   return (
-    <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+    <Card className="border-border bg-card">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-2">

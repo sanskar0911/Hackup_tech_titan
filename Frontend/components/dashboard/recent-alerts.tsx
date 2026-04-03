@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { mockAlerts, type Alert } from "@/lib/mock-data"
+import { type Alert } from "@/app/(dashboard)/alerts/page"
 import { AlertTriangle, RefreshCw, CheckCircle2, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -15,32 +15,46 @@ const alertTypeIcons = {
   dormant_activation: "Dormant",
 }
 
-const statusConfig = {
+const statusConfig: any = {
   open: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
   investigating: { icon: RefreshCw, color: "text-warning", bg: "bg-warning/10" },
   resolved: { icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+  PENDING: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
+  VERIFIED: { icon: RefreshCw, color: "text-warning", bg: "bg-warning/10" },
+  FRAUD: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
+  CLOSED: { icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
 }
 
 export function RecentAlerts() {
-  const ALERTS_STORAGE_KEY = "fraudshield_alerts_override_v1"
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts)
+  const [alerts, setAlerts] = useState<Alert[]>([])
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    try {
-      const raw = localStorage.getItem(ALERTS_STORAGE_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw) as Alert[]
-      if (Array.isArray(parsed) && parsed.length > 0) setAlerts(parsed)
-    } catch {
-      // Ignore localStorage parsing issues; fall back to defaults
+    const loadAlerts = async () => {
+      try {
+        const { fraudApi } = await import("@/lib/api-service");
+        const data: any[] = await fraudApi.getAlerts() as any[];
+        const mappedAlerts: Alert[] = data.map((d: any) => ({
+          ...d,
+          id: d._id || d.id || "unknown",
+          type: d.type || "Suspicious Activity",
+          riskScore: d.fraudScore ?? d.riskScore ?? 0,
+          description: d.reasons?.join(", ") || d.description || "System flagged this activity.",
+          timestamp: d.createdAt || d.timestamp || new Date().toISOString(),
+          status: d.status || "open"
+        }));
+        setAlerts(mappedAlerts);
+      } catch (err) {
+        console.error("Failed to fetch recent alerts", err);
+      }
     }
+    loadAlerts();
   }, [])
 
   if (!mounted) {
     return (
-      <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+      <Card className="border-border bg-card">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -60,7 +74,7 @@ export function RecentAlerts() {
   }
 
   return (
-    <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+    <Card className="border-border bg-card">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>

@@ -9,7 +9,7 @@ export type FraudType =
 
 export type TransactionStatus = "normal" | "suspicious" | "flagged"
 
-export type TransactionType = "UPI" | "NEFT" | "IMPS" | "RTGS"
+export type TransactionType = "UPI" | "NEFT" | "IMPS" | "RTGS" | "Card"
 
 export type AlertType =
   | "circular_transaction"
@@ -55,6 +55,7 @@ export interface Account {
   lastLoginIP?: string
   lastActive?: string
   fraudType?: FraudType
+  contactEmails?: string[]
 }
 
 export interface Alert {
@@ -81,7 +82,12 @@ export interface DashboardStats {
 
 const formatINR = (amount: number) => `₹${amount.toLocaleString("en-IN")}`
 
-export const mockAccounts: Account[] = [
+const defaultContactEmails = [
+  "sanskar0912gharal@gmail.com",
+  "gudulkarpranay@gmail.com",
+]
+
+const baseMockAccounts: Account[] = [
   {
     id: "ACC001",
     name: "Ravi Kumar",
@@ -99,7 +105,7 @@ export const mockAccounts: Account[] = [
     transactionCount: 118,
     riskScore: 92,
     isSuspicious: true,
-    lastLoginCity: "Moscow",
+    lastLoginCity: "Guwahati",
     lastLoginIP: "203.0.113.210",
     lastActive: "2026-03-29T14:22:10.000Z",
     fraudType: "impossible_travel",
@@ -192,13 +198,13 @@ export const mockAccounts: Account[] = [
     pan: "ZYXWV1234A",
     phone: "+918877665544",
     ipAddress: "198.51.100.44",
-    country: "NG",
+    country: "IN",
     balance: 7600000,
     createdAt: "2024-02-10T05:10:00.000Z",
     transactionCount: 310,
     riskScore: 85,
     isSuspicious: true,
-    lastLoginCity: "Lagos",
+    lastLoginCity: "Kolkata",
     lastLoginIP: "198.51.100.201",
     lastActive: "2026-03-28T10:33:40.000Z",
     fraudType: "dormant_activation",
@@ -232,13 +238,13 @@ export const mockAccounts: Account[] = [
     pan: "HIJKL9012M",
     phone: "+916655443322",
     ipAddress: "192.0.2.88",
-    country: "RU",
+    country: "IN",
     balance: 980000,
     createdAt: "2024-06-18T13:15:00.000Z",
     transactionCount: 85,
     riskScore: 79,
     isSuspicious: true,
-    lastLoginCity: "Victoria",
+    lastLoginCity: "Mysuru",
     lastLoginIP: "192.0.2.177",
     lastActive: "2026-03-30T18:01:00.000Z",
     fraudType: "fan_out",
@@ -290,13 +296,13 @@ export const mockAccounts: Account[] = [
     pan: "ABCDE5678F",
     phone: "+917776665554",
     ipAddress: "203.0.113.17",
-    country: "CY",
+    country: "IN",
     balance: 4100000,
     createdAt: "2024-08-05T06:20:00.000Z",
     transactionCount: 160,
     riskScore: 90,
     isSuspicious: true,
-    lastLoginCity: "Nicosia",
+    lastLoginCity: "Nagpur",
     lastLoginIP: "203.0.113.200",
     lastActive: "2026-03-30T08:55:30.000Z",
     fraudType: "rapid_transfer",
@@ -336,12 +342,17 @@ export const mockAccounts: Account[] = [
     transactionCount: 203,
     riskScore: 84,
     isSuspicious: true,
-    lastLoginCity: "Dubai",
+    lastLoginCity: "Pune",
     lastLoginIP: "192.0.2.91",
     lastActive: "2026-03-29T20:11:55.000Z",
     fraudType: "velocity",
   },
 ]
+
+export const mockAccounts: Account[] = baseMockAccounts.map((account) => ({
+  ...account,
+  contactEmails: [...defaultContactEmails],
+}))
 
 export const mockTransactions: Transaction[] = [
   // Circular transaction loop (flagged)
@@ -402,7 +413,7 @@ export const mockTransactions: Transaction[] = [
     status: "flagged",
     type: "IMPS",
     fromCity: "Surat",
-    fromCountry: "CY",
+    fromCountry: "IN",
     toCity: "Hyderabad",
     toCountry: "IN",
     fraudType: "rapid_transfer",
@@ -417,7 +428,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "IMPS",
     fromCity: "Surat",
-    fromCountry: "CY",
+    fromCountry: "IN",
     toCity: "Pune",
     toCountry: "IN",
     fraudType: "rapid_transfer",
@@ -432,7 +443,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "UPI",
     fromCity: "Surat",
-    fromCountry: "CY",
+    fromCountry: "IN",
     toCity: "Mumbai",
     toCountry: "IN",
     fraudType: "rapid_transfer",
@@ -447,9 +458,9 @@ export const mockTransactions: Transaction[] = [
     status: "flagged",
     type: "IMPS",
     fromCity: "Surat",
-    fromCountry: "CY",
+    fromCountry: "IN",
     toCity: "Chennai",
-    toCountry: "NG",
+    toCountry: "IN",
     fraudType: "rapid_transfer",
   },
 
@@ -464,7 +475,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "UPI",
     fromCity: "Chennai",
-    fromCountry: "NG",
+    fromCountry: "IN",
     toCity: "Pune",
     toCountry: "IN",
     fraudType: "structuring",
@@ -479,7 +490,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "UPI",
     fromCity: "Chennai",
-    fromCountry: "NG",
+    fromCountry: "IN",
     toCity: "Pune",
     toCountry: "IN",
     fraudType: "structuring",
@@ -494,7 +505,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "UPI",
     fromCity: "Chennai",
-    fromCountry: "NG",
+    fromCountry: "IN",
     toCity: "Hyderabad",
     toCountry: "IN",
     fraudType: "structuring",
@@ -509,7 +520,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "UPI",
     fromCity: "Chennai",
-    fromCountry: "NG",
+    fromCountry: "IN",
     toCity: "Delhi",
     toCountry: "IN",
     fraudType: "structuring",
@@ -524,7 +535,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "UPI",
     fromCity: "Chennai",
-    fromCountry: "NG",
+    fromCountry: "IN",
     toCity: "Mumbai",
     toCountry: "IN",
     fraudType: "structuring",
@@ -539,7 +550,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "UPI",
     fromCity: "Chennai",
-    fromCountry: "NG",
+    fromCountry: "IN",
     toCity: "Bengaluru",
     toCountry: "IN",
     fraudType: "structuring",
@@ -573,7 +584,7 @@ export const mockTransactions: Transaction[] = [
     fromCity: "Chandigarh",
     fromCountry: "IN",
     toCity: "Chennai",
-    toCountry: "NG",
+    toCountry: "IN",
     fraudType: "velocity",
   },
   {
@@ -588,7 +599,7 @@ export const mockTransactions: Transaction[] = [
     fromCity: "Chandigarh",
     fromCountry: "IN",
     toCity: "Kolkata",
-    toCountry: "RU",
+    toCountry: "IN",
     fraudType: "velocity",
   },
 
@@ -603,7 +614,7 @@ export const mockTransactions: Transaction[] = [
     status: "flagged",
     type: "RTGS",
     fromCity: "Chennai",
-    fromCountry: "NG",
+    fromCountry: "IN",
     toCity: "Bengaluru",
     toCountry: "IN",
     fraudType: "dormant_activation",
@@ -621,8 +632,8 @@ export const mockTransactions: Transaction[] = [
     type: "UPI",
     fromCity: "Mumbai",
     fromCountry: "IN",
-    toCity: "Moscow",
-    toCountry: "RU",
+    toCity: "Kochi",
+    toCountry: "IN",
     fraudType: "impossible_travel",
   },
   {
@@ -652,7 +663,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "UPI",
     fromCity: "Kolkata",
-    fromCountry: "RU",
+    fromCountry: "IN",
     toCity: "Ahmedabad",
     toCountry: "IN",
     fraudType: "fan_out",
@@ -667,7 +678,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "UPI",
     fromCity: "Kolkata",
-    fromCountry: "RU",
+    fromCountry: "IN",
     toCity: "Pune",
     toCountry: "IN",
     fraudType: "fan_out",
@@ -682,7 +693,7 @@ export const mockTransactions: Transaction[] = [
     status: "flagged",
     type: "UPI",
     fromCity: "Kolkata",
-    fromCountry: "RU",
+    fromCountry: "IN",
     toCity: "Hyderabad",
     toCountry: "IN",
     fraudType: "fan_out",
@@ -697,7 +708,7 @@ export const mockTransactions: Transaction[] = [
     status: "suspicious",
     type: "IMPS",
     fromCity: "Kolkata",
-    fromCountry: "RU",
+    fromCountry: "IN",
     toCity: "Mumbai",
     toCountry: "IN",
     fraudType: "fan_out",
@@ -712,7 +723,7 @@ export const mockTransactions: Transaction[] = [
     timestamp: "2026-04-03T11:10:00.000Z",
     riskScore: 18,
     status: "normal",
-    type: "UPI",
+    type: "Card",
     fromCity: "Delhi",
     fromCountry: "IN",
     toCity: "Lucknow",
@@ -971,10 +982,10 @@ export const riskDistributionData: Array<{
   count: number
   fill: string
 }> = [
-  { risk: "Critical (>80)", count: 5, fill: "hsl(var(--chart-3))" },
-  { risk: "High (60-80)", count: 2, fill: "hsl(var(--chart-5))" },
-  { risk: "Medium (40-60)", count: 2, fill: "hsl(var(--chart-4))" },
-  { risk: "Low (<40)", count: 4, fill: "hsl(var(--chart-2))" },
+  { risk: "Critical (>80)", count: 5, fill: "var(--chart-3)" },
+  { risk: "High (60-80)", count: 2, fill: "var(--chart-5)" },
+  { risk: "Medium (40-60)", count: 2, fill: "var(--chart-4)" },
+  { risk: "Low (<40)", count: 4, fill: "var(--chart-2)" },
 ]
 
 // Pie chart distribution for the dashboard.
@@ -983,8 +994,8 @@ export const fraudVsNormalData: Array<{
   value: number
   fill: string
 }> = [
-  { name: "Normal", value: mockDashboardStats.totalTransactions - mockDashboardStats.suspiciousTransactions, fill: "hsl(var(--chart-2))" },
-  { name: "Suspicious", value: 132, fill: "hsl(var(--chart-3))" },
+  { name: "Normal", value: mockDashboardStats.totalTransactions - mockDashboardStats.suspiciousTransactions, fill: "var(--chart-2)" },
+  { name: "Suspicious", value: 132, fill: "var(--chart-3)" },
   { name: "Flagged", value: 102, fill: "#ef4444" },
 ]
 

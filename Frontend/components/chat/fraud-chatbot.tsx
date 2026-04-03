@@ -47,13 +47,13 @@ export default function FraudChatbot({ transaction }: { transaction?: any }) {
         <div className="h-56 overflow-y-auto rounded-md border border-border p-3 text-sm">
           {chat.length === 0 ? (
             <p className="text-muted-foreground">
-              Try: &quot;Explain how risk score is generated for flagged transactions.&quot;
+              Ask GraphSentinel AI — e.g. &quot;Explain how risk score is generated for flagged transactions.&quot;
             </p>
           ) : (
             chat.map((c, i) => (
               <div key={i} className="mb-3 space-y-1">
                 <p><span className="font-medium">You:</span> {c.user}</p>
-                <p><span className="font-medium">AI:</span> {c.bot}</p>
+                <p><span className="font-medium">GraphSentinel AI:</span> {c.bot}</p>
               </div>
             ))
           )}
@@ -64,7 +64,7 @@ export default function FraudChatbot({ transaction }: { transaction?: any }) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder="Ask AI about this fraud pattern..."
+            placeholder="Ask GraphSentinel AI about this fraud pattern..."
           />
           <Button onClick={sendMessage} disabled={loading}>
             {loading ? "..." : "Send"}

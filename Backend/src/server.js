@@ -19,6 +19,7 @@ import investigationRoutes from "./routes/investigationRoutes.js";
 import fundFlowRoutes from "./routes/fundFlowRoutes.js";
 import simulationRoutes from "./routes/simulationRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
+import statsRoutes from "./routes/statsRoutes.js";
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use("/api/investigation", investigationRoutes);
 app.use("/api/fund-flow", fundFlowRoutes);
 app.use("/api/simulation", simulationRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/stats", statsRoutes);
 
 // ================= ERROR HANDLING MIDDLEWARE =================
 app.use((err, req, res, next) => {

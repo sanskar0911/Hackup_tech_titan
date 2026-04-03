@@ -20,7 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { mockAlerts, type Alert } from "@/lib/mock-data"
+import { fraudApi } from "@/lib/api-service"
+import { mockAccounts } from "@/lib/mock-data"
 import {
   AlertTriangle,
   RefreshCw,
@@ -31,7 +32,22 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const alertTypeLabels: Record<Alert["type"], string> = {
+export interface Alert {
+  _id?: string;
+  id: string;
+  accountId: string;
+  type: string;
+  fraudType?: string;
+  fraudScore?: number;
+  riskScore: number;
+  status: "open" | "investigating" | "resolved" | "PENDING" | "VERIFIED" | "FRAUD" | "CLOSED" | string;
+  description: string;
+  reasons?: string[];
+  timestamp: string;
+  createdAt?: string;
+}
+
+const alertTypeLabels: Record<string, string> = {
   circular_transaction: "Circular Transaction",
   rapid_transfer: "Rapid Transfer",
   structuring: "Structuring",
@@ -39,74 +55,63 @@ const alertTypeLabels: Record<Alert["type"], string> = {
   dormant_activation: "Dormant Activation",
 }
 
-const statusConfig = {
-  open: {
-    icon: AlertTriangle,
-    label: "Open",
-    color: "bg-destructive text-destructive-foreground",
-  },
-  investigating: {
-    icon: RefreshCw,
-    label: "Investigating",
-    color: "bg-warning text-warning-foreground",
-  },
-  resolved: {
-    icon: CheckCircle2,
-    label: "Resolved",
-    color: "bg-success text-success-foreground",
-  },
+const statusConfig: any = {
+  open: { icon: AlertTriangle, label: "Open", color: "bg-destructive text-destructive-foreground" },
+  PENDING: { icon: AlertTriangle, label: "Pending", color: "bg-destructive text-destructive-foreground" },
+  investigating: { icon: RefreshCw, label: "Investigating", color: "bg-warning text-warning-foreground" },
+  VERIFIED: { icon: RefreshCw, label: "Verified", color: "bg-warning text-warning-foreground" },
+  FRAUD: { icon: RefreshCw, label: "Fraud", color: "bg-destructive text-destructive-foreground" },
+  resolved: { icon: CheckCircle2, label: "Resolved", color: "bg-success text-success-foreground" },
+  CLOSED: { icon: CheckCircle2, label: "Closed", color: "bg-success text-success-foreground" },
 }
 
 export default function AlertsPage() {
-  const ALERTS_STORAGE_KEY = "fraudshield_alerts_override_v1"
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [riskFilter, setRiskFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null)
+  const [emailTo, setEmailTo] = useState<string>("")
+  const [emailSubject, setEmailSubject] = useState<string>("")
+  const [emailBody, setEmailBody] = useState<string>("")
+  const [emailSending, setEmailSending] = useState(false)
+  const [emailStatus, setEmailStatus] = useState<string>("")
 
-  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts)
+  const [alerts, setAlerts] = useState<Alert[]>([])
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(ALERTS_STORAGE_KEY)
-      if (!raw) return
-      const parsed = JSON.parse(raw) as Alert[]
-      if (Array.isArray(parsed) && parsed.length > 0) setAlerts(parsed)
-    } catch {
-      // Ignore localStorage issues
-    }
+    const loadAlerts = async () => {
+      try {
+        const data: any[] = await fraudApi.getAlerts() as any[];
+        const mappedAlerts: Alert[] = data.map((d: any) => ({
+          ...d,
+          id: d._id || d.id || "unknown",
+          type: d.type || "Suspicious Activity",
+          riskScore: d.fraudScore ?? d.riskScore ?? 0,
+          description: d.reasons?.join(", ") || d.description || "System flagged this activity.",
+          timestamp: d.createdAt || d.timestamp || new Date().toISOString(),
+          status: d.status || "open"
+        }));
+        setAlerts(mappedAlerts);
+      } catch (err) {
+        console.error("Failed to fetch alerts", err);
+      }
+    };
+    loadAlerts();
   }, [])
 
-  const persistAlerts = (next: Alert[]) => {
-    setAlerts(next)
+  const updateAlertStatus = async (alertId: string, status: any) => {
     try {
-      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(next))
-    } catch {
-      // Ignore localStorage issues
+      await fraudApi.updateAlertStatus(alertId, status);
+      setAlerts(alerts.map((a) =>
+        (a._id || a.id) === alertId ? { ...a, status } : a
+      ));
+    } catch (err) {
+      console.error("Failed to update status", err);
     }
   }
 
-  const updateAlertStatus = (alertId: string, status: Alert["status"]) => {
-    const next = alerts.map((a) =>
-      a.id === alertId ? { ...a, status, timestamp: new Date().toISOString() } : a
-    )
-    persistAlerts(next)
-  }
-
-  // ML output (riskScore) is model-driven; analyst still manually sets alert status.
   const rerunMlScore = (alertId: string) => {
-    const current = alerts.find((a) => a.id === alertId)
-    if (!current) return
-
-    const delta = Math.round((Math.random() - 0.5) * 18) // +/-9 band
-    const nextRiskScore = Math.max(0, Math.min(100, current.riskScore + delta))
-
-    const next = alerts.map((a) =>
-      a.id === alertId
-        ? { ...a, riskScore: nextRiskScore, timestamp: new Date().toISOString() }
-        : a
-    )
-    persistAlerts(next)
+    // Placeholder for triggering ML re-eval
   }
 
   const filteredAlerts = alerts.filter((alert) => {
@@ -122,6 +127,67 @@ export default function AlertsPage() {
       return false
     return true
   })
+
+  const getRecipientsForAccount = (accountId: string) =>
+    mockAccounts.find((a) => a.id === accountId)?.contactEmails ?? []
+
+  const prepareEmailDraft = (alert: Alert) => {
+    const recipients = getRecipientsForAccount(alert.accountId)
+    setEmailTo(recipients[0] ?? "")
+    setEmailSubject(
+      `Fraud Alert ${alert.id} for ${alert.accountId} (${alert.riskScore}% risk)`
+    )
+    setEmailBody(
+      [
+        `Alert ID: ${alert.id}`,
+        `Account ID: ${alert.accountId}`,
+        `Type: ${(alert.fraudType || alert.type).replace(/_/g, " ")}`,
+        `Risk Score: ${alert.riskScore}%`,
+        `Status: ${alert.status}`,
+        `Description: ${alert.description}`,
+        "",
+        "Please review and acknowledge this alert.",
+      ].join("\n")
+    )
+    setEmailStatus("")
+  }
+
+  const sendAlertEmail = async (alert: Alert) => {
+    if (!emailTo || !emailSubject || !emailBody) {
+      setEmailStatus("Please fill recipient, subject, and message.")
+      return
+    }
+
+    setEmailSending(true)
+    setEmailStatus("")
+    try {
+      const response = await fetch("http://localhost:5000/api/alerts/email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: emailTo,
+          subject: emailSubject,
+          text: `${emailBody}\n\nReference: ${alert.id} | ${alert.accountId}`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send email");
+      }
+
+      setEmailStatus("Email sent successfully!")
+      
+      // Clear fields after success
+      setEmailSubject("")
+      setEmailBody("")
+    } catch {
+      setEmailStatus("Failed to send email. Check backend server and credentials.")
+    } finally {
+      setEmailSending(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -230,9 +296,14 @@ export default function AlertsPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() =>
-                            setExpandedAlert(isOpen ? null : alert.id)
-                          }
+                          onClick={() => {
+                            if (isOpen) {
+                              setExpandedAlert(null)
+                              return
+                            }
+                            setExpandedAlert(alert.id)
+                            prepareEmailDraft(alert)
+                          }}
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           {isOpen ? "Hide" : "View"}
@@ -321,6 +392,48 @@ export default function AlertsPage() {
                                 >
                                   Mark Resolved
                                 </Button>
+                              </div>
+                            </div>
+
+                            <div className="pt-3 border-t border-border space-y-2">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Send Email
+                              </p>
+                              <Select value={emailTo} onValueChange={setEmailTo}>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select recipient" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {getRecipientsForAccount(alert.accountId).map((recipient) => (
+                                    <SelectItem key={recipient} value={recipient}>
+                                      {recipient}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Input
+                                value={emailSubject}
+                                onChange={(e) => setEmailSubject(e.target.value)}
+                                placeholder="Email subject"
+                              />
+                              <textarea
+                                value={emailBody}
+                                onChange={(e) => setEmailBody(e.target.value)}
+                                rows={5}
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                placeholder="Write email body"
+                              />
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => sendAlertEmail(alert)}
+                                  disabled={emailSending}
+                                >
+                                  {emailSending ? "Sending..." : "Send Email"}
+                                </Button>
+                                {emailStatus ? (
+                                  <span className="text-xs text-muted-foreground">{emailStatus}</span>
+                                ) : null}
                               </div>
                             </div>
                           </div>

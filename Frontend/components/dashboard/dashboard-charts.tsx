@@ -32,7 +32,7 @@ export function TransactionChart() {
 
   if (!mounted) {
     return (
-      <Card className="col-span-2 border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+      <Card className="col-span-2 border-border bg-card">
         <CardHeader>
           <CardTitle className="text-card-foreground">Transaction Volume</CardTitle>
           <CardDescription>Daily transaction count over the past 15 days</CardDescription>
@@ -45,7 +45,7 @@ export function TransactionChart() {
   }
 
   return (
-    <Card className="col-span-2 border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+    <Card className="col-span-2 border-border bg-card">
       <CardHeader>
         <CardTitle className="text-card-foreground">Transaction Volume</CardTitle>
         <CardDescription>Daily transaction count over the past 15 days</CardDescription>
@@ -56,23 +56,23 @@ export function TransactionChart() {
             <AreaChart data={transactionVolumeData}>
               <defs>
                 <linearGradient id="transactionGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="suspiciousGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--chart-3))" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="hsl(var(--chart-3))" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--chart-3)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="var(--chart-3)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis
                 dataKey="date"
-                stroke="hsl(var(--muted-foreground))"
+                stroke="var(--muted-foreground)"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                stroke="hsl(var(--muted-foreground))"
+                stroke="var(--muted-foreground)"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
@@ -80,23 +80,23 @@ export function TransactionChart() {
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
                   borderRadius: "8px",
-                  color: "hsl(var(--card-foreground))",
+                  color: "var(--card-foreground)",
                 }}
               />
               <Area
                 type="monotone"
                 dataKey="transactions"
-                stroke="hsl(var(--chart-1))"
+                stroke="var(--chart-1)"
                 fill="url(#transactionGradient)"
                 strokeWidth={2}
               />
               <Area
                 type="monotone"
                 dataKey="suspicious"
-                stroke="hsl(var(--chart-3))"
+                stroke="var(--chart-3)"
                 fill="url(#suspiciousGradient)"
                 strokeWidth={2}
               />
@@ -113,7 +113,7 @@ export function RiskDistributionChart() {
 
   if (!mounted) {
     return (
-      <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+      <Card className="border-border bg-card">
         <CardHeader>
           <CardTitle className="text-card-foreground">Risk Distribution</CardTitle>
           <CardDescription>Accounts by risk level</CardDescription>
@@ -126,7 +126,7 @@ export function RiskDistributionChart() {
   }
 
   return (
-    <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+    <Card className="border-border bg-card">
       <CardHeader>
         <CardTitle className="text-card-foreground">Risk Distribution</CardTitle>
         <CardDescription>Accounts by risk level</CardDescription>
@@ -137,7 +137,7 @@ export function RiskDistributionChart() {
             <BarChart data={riskDistributionData} layout="vertical">
               <XAxis
                 type="number"
-                stroke="hsl(var(--muted-foreground))"
+                stroke="var(--muted-foreground)"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
@@ -145,7 +145,7 @@ export function RiskDistributionChart() {
               <YAxis
                 dataKey="risk"
                 type="category"
-                stroke="hsl(var(--muted-foreground))"
+                stroke="var(--muted-foreground)"
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
@@ -153,10 +153,10 @@ export function RiskDistributionChart() {
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
                   borderRadius: "8px",
-                  color: "hsl(var(--card-foreground))",
+                  color: "var(--card-foreground)",
                 }}
               />
               <Bar dataKey="count" radius={[0, 4, 4, 0]}>
@@ -177,7 +177,7 @@ export function FraudPieChart() {
 
   if (!mounted) {
     return (
-      <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+      <Card className="border-border bg-card">
         <CardHeader>
           <CardTitle className="text-card-foreground">Transaction Status</CardTitle>
           <CardDescription>Normal vs Suspicious</CardDescription>
@@ -190,7 +190,7 @@ export function FraudPieChart() {
   }
 
   return (
-    <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+    <Card className="border-border bg-card">
       <CardHeader>
         <CardTitle className="text-card-foreground">Transaction Status</CardTitle>
         <CardDescription>Normal vs Suspicious</CardDescription>
@@ -214,10 +214,10 @@ export function FraudPieChart() {
               </Pie>
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
                   borderRadius: "8px",
-                  color: "hsl(var(--card-foreground))",
+                  color: "var(--card-foreground)",
                 }}
               />
             </PieChart>
