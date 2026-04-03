@@ -12,8 +12,9 @@ export default function FundFlowPage() {
             Fund Flow Graph
           </h1>
           <p className="text-muted-foreground">
-            Interactive visualization of money flows between accounts.
-            Suspicious nodes are highlighted in red.
+            Real-time visualization of suspicious money flows.
+            Only moderate and high-risk transactions are shown.
+            Click nodes to investigate deeper.
           </p>
         </div>
 

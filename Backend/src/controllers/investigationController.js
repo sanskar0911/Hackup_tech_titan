@@ -138,8 +138,8 @@ export const getFundFlow = async (req, res) => {
             edgeRisk > 80
               ? "red"
               : edgeRisk > 50
-              ? "orange"
-              : "#999",
+                ? "orange"
+                : "#999",
           strokeWidth: edgeRisk > 60 ? 3 : 1.5,
         },
         data: {
@@ -238,6 +238,17 @@ export const getFundFlow = async (req, res) => {
     });
 
     res.json({ nodes: graphNodes, edges });
+    res.json({
+      accountId,
+      suspiciousPaths,
+      summary: {
+        hasCycle: suspiciousPaths.some(
+          (p) => p[0] === p[p.length - 1]
+        ),
+        pathCount: suspiciousPaths.length,
+      },
+      explanation: "Detected circular and multi-hop fund movements indicating laundering patterns",
+    });
 
   } catch (error) {
     console.error("Fund Flow Error:", error);

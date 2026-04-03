@@ -384,3 +384,41 @@ export default function InvestigationPage() {
     </div>
   )
 }
+const handleSearch = async () => {
+  if (!accountId.trim()) return;
+
+  setIsSearching(true);
+
+  try {
+    const res = await fetch(`http://localhost:5000/api/investigate/${accountId}`);
+    const data = await res.json();
+
+    setSelectedAccount({
+      id: data.accountId,
+      riskScore: data.summary.pathCount * 20,
+      isSuspicious: data.summary.hasCycle,
+      transactionCount: data.summary.pathCount,
+      name: "Detected Account",
+      type: "dynamic",
+      country: "Unknown",
+      balance: 0,
+      createdAt: new Date().toISOString(),
+    });
+
+    setRelatedTransactions(
+      data.suspiciousPaths.map((path, i) => ({
+        id: "TX" + i,
+        from: path[0],
+        to: path[path.length - 1],
+        amount: 50000,
+        riskScore: 80,
+        timestamp: new Date(),
+      }))
+    );
+
+  } catch (err) {
+    console.error(err);
+  }
+
+  setIsSearching(false);
+};

@@ -10,7 +10,7 @@ import transactionRoutes from "./routes/transactionRoutes.js";
 import alertRoutes from "./routes/alertRoutes.js";
 import investigationRoutes from "./routes/investigationRoutes.js";
 import fundFlowRoutes from "./routes/fundFlowRoutes.js";
-import demoRoutes from "./routes/demoRoutes.js"; // ✅ FIXED IMPORT
+import demoRoutes from "./routes/demoRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 
 // ✅ KAFKA
@@ -20,20 +20,8 @@ import { startAlertConsumer } from "./kafka/alertConsumer.js";
 
 dotenv.config();
 
-// ================= DB =================
-await connectDB();
-
 // ================= APP INIT =================
 const app = express();
-const server = http.createServer(app);
-
-// ================= SOCKET =================
-const io = new Server(server, {
-  cors: { origin: "*" },
-});
-
-// ✅ Make io globally accessible
-global.io = io;
 
 // ================= MIDDLEWARE =================
 app.use(cors());
@@ -44,10 +32,20 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/investigation", investigationRoutes);
 app.use("/api/fund-flow", fundFlowRoutes);
-app.use("/api/demo", demoRoutes); // ✅ DEMO MODE ROUTE
+app.use("/api/demo", demoRoutes);
 app.use("/api/feedback", feedbackRoutes);
 
-// ================= SOCKET CONNECTION =================
+// ================= SERVER + SOCKET =================
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: { origin: "*" },
+});
+
+// ✅ Make io globally accessible
+global.io = io;
+
+// ================= SOCKET EVENTS =================
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
@@ -61,7 +59,10 @@ const startServer = async () => {
   try {
     console.log("🚀 Starting services...");
 
-    // 🔥 Start Kafka Services (PARALLEL = FASTER)
+    // ✅ Connect DB
+    await connectDB();
+
+    // 🔥 Start Kafka Services (parallel for speed)
     await Promise.allSettled([
       startProducer(),
       startConsumer(),
@@ -70,7 +71,6 @@ const startServer = async () => {
 
     console.log("✅ Kafka fully running");
 
-    // 🚀 Start Server
     const PORT = process.env.PORT || 5000;
 
     server.listen(PORT, () => {
@@ -81,7 +81,7 @@ const startServer = async () => {
 
   } catch (error) {
     console.error("❌ Server startup error:", error);
-    process.exit(1); // 🔥 Fail fast (important for hackathon stability)
+    process.exit(1);
   }
 };
 

@@ -165,6 +165,24 @@ export const analyzeTransaction = async (tx, allTransactions = []) => {
     reasons.push("Corridor evasion pattern");
   }
 
+  // ================= MFA + ALERT =================
+  let mfaRequired = false;
+
+  if (finalScore > 80) {
+    mfaRequired = true;
+    reasons.push("MFA required due to critical risk");
+  }
+
+  // ================= FINAL RESPONSE =================
+  return {
+    riskScore: finalScore,
+    aiScore: Math.round(mlScore * 100),
+    isFraud: finalScore > 60,
+    alertLevel,
+    reasons,
+    mfaRequired,
+  };
+
   // ================= RULE SCORE =================
   let ruleBasedScore =
     0.3 * ruleScore +
