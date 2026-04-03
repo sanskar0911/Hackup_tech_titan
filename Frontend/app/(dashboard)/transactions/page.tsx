@@ -44,10 +44,10 @@ const statusConfig: Record<
 }
 
 const typeLabels: Record<Transaction["type"], string> = {
-  wire: "Wire Transfer",
-  ach: "ACH",
-  internal: "Internal",
-  card: "Card Payment",
+  UPI: "UPI",
+  NEFT: "NEFT",
+  IMPS: "IMPS",
+  RTGS: "RTGS",
 }
 
 export default function TransactionsPage() {
@@ -149,10 +149,10 @@ export default function TransactionsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="wire">Wire Transfer</SelectItem>
-                <SelectItem value="ach">ACH</SelectItem>
-                <SelectItem value="internal">Internal</SelectItem>
-                <SelectItem value="card">Card Payment</SelectItem>
+                <SelectItem value="UPI">UPI</SelectItem>
+                <SelectItem value="NEFT">NEFT</SelectItem>
+                <SelectItem value="IMPS">IMPS</SelectItem>
+                <SelectItem value="RTGS">RTGS</SelectItem>
               </SelectContent>
             </Select>
           </div>

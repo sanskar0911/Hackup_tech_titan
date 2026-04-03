@@ -1,6 +1,7 @@
 import { predictFraud } from "./aiModel.js";
 
 // ================= GRAPH STATE =================
+// In a real app this would be in a DB or Redis, but we keep it in-memory for the demo.
 const graph = {
   nodes: {},
   adjacencyList: {},
@@ -21,13 +22,13 @@ function initNode(id) {
 
 // ================= UPDATE GRAPH =================
 function updateGraph(tx) {
-  const { fromAccount, toAccount, amount } = tx;
+  const { senderId, receiverId, amount } = tx;
 
-  if (!graph.nodes[fromAccount]) graph.nodes[fromAccount] = initNode(fromAccount);
-  if (!graph.nodes[toAccount]) graph.nodes[toAccount] = initNode(toAccount);
+  if (!graph.nodes[senderId]) graph.nodes[senderId] = initNode(senderId);
+  if (!graph.nodes[receiverId]) graph.nodes[receiverId] = initNode(receiverId);
 
-  const sender = graph.nodes[fromAccount];
-  const receiver = graph.nodes[toAccount];
+  const sender = graph.nodes[senderId];
+  const receiver = graph.nodes[receiverId];
 
   sender.totalSent += amount;
   sender.outDegree++;
@@ -38,11 +39,11 @@ function updateGraph(tx) {
   receiver.inDegree++;
   receiver.transactions.push(tx);
 
-  if (!graph.adjacencyList[fromAccount]) {
-    graph.adjacencyList[fromAccount] = [];
+  if (!graph.adjacencyList[senderId]) {
+    graph.adjacencyList[senderId] = [];
   }
 
-  graph.adjacencyList[fromAccount].push(toAccount);
+  graph.adjacencyList[senderId].push(receiverId);
 }
 
 // ================= CYCLE DETECTION =================
@@ -64,18 +65,17 @@ function hasCycle(start, target, visited = new Set(), depth = 0) {
 // ================= MAIN ENGINE =================
 export const analyzeTransaction = async (tx, allTransactions = []) => {
   const now = Date.now();
-  const txTime = new Date(tx.timestamp).getTime();
+  const txTime = tx.timestamp ? new Date(tx.timestamp).getTime() : now;
 
   updateGraph(tx);
 
   let reasons = [];
-
   let ruleScore = 0;
   let behaviorScore = 0;
   let graphScore = 0;
   let anomalyScore = 0;
 
-  const node = graph.nodes[tx.fromAccount];
+  const node = graph.nodes[tx.senderId];
 
   // ================= RULE ENGINE =================
   if (tx.amount > 100000) {
@@ -84,9 +84,7 @@ export const analyzeTransaction = async (tx, allTransactions = []) => {
   }
 
   const recentTx = allTransactions.filter(
-    (t) =>
-      t.fromAccount === tx.fromAccount &&
-      now - new Date(t.timestamp).getTime() < 5 * 60 * 1000
+    (t) => t.senderId === tx.senderId && now - new Date(t.timestamp).getTime() < 5 * 60 * 1000
   );
 
   if (recentTx.length > 3) {
@@ -95,18 +93,18 @@ export const analyzeTransaction = async (tx, allTransactions = []) => {
   }
 
   // ================= GRAPH ENGINE =================
-  if (hasCycle(tx.toAccount, tx.fromAccount)) {
+  if (hasCycle(tx.receiverId, tx.senderId)) {
     graphScore += 40;
     reasons.push("Circular fund movement detected");
   }
 
   const layering = allTransactions.some(
     (t1) =>
-      t1.fromAccount === tx.fromAccount &&
+      t1.senderId === tx.senderId &&
       allTransactions.some(
         (t2) =>
-          t2.fromAccount === t1.toAccount &&
-          t2.toAccount !== tx.fromAccount &&
+          t2.senderId === t1.receiverId &&
+          t2.receiverId !== tx.senderId &&
           now - new Date(t2.timestamp).getTime() < 10 * 60 * 1000
       )
   );
@@ -116,8 +114,7 @@ export const analyzeTransaction = async (tx, allTransactions = []) => {
     reasons.push("Layering pattern detected");
   }
 
-  const receivers = new Set(recentTx.map((t) => t.toAccount));
-
+  const receivers = new Set(recentTx.map((t) => t.receiverId));
   if (receivers.size >= 5) {
     graphScore += 35;
     reasons.push("Rapid fan-out burst");
@@ -125,102 +122,65 @@ export const analyzeTransaction = async (tx, allTransactions = []) => {
 
   // ================= BEHAVIOR =================
   const smallTx = recentTx.filter((t) => t.amount < 10000);
-
   if (smallTx.length >= 5) {
     behaviorScore += 35;
     reasons.push("Smurfing pattern detected");
   }
 
-  if (
-    node.lastActive &&
-    txTime - new Date(node.lastActive).getTime() > 60 * 60 * 1000
-  ) {
+  if (node.lastActive && txTime - new Date(node.lastActive).getTime() > 60 * 60 * 1000) {
     behaviorScore += 30;
     reasons.push("Sleeper account activated");
   }
 
-  node.lastActive = tx.timestamp;
+  node.lastActive = tx.timestamp || new Date();
 
   if (node.avgAmount > 0 && tx.amount > node.avgAmount * 4) {
     anomalyScore += 30;
     reasons.push("Adversarial behavior drift detected");
   }
 
-  // ================= GEO =================
-  if (tx.fromBank && tx.toBank && tx.fromBank !== tx.toBank) {
-    anomalyScore += 15;
-    reasons.push("Cross-bank anomaly");
-  }
-
-  const corridorKey = `${tx.fromCountry}-${tx.toCountry}`;
-
-  const corridorTx = allTransactions.filter(
-    (t) =>
-      `${t.fromCountry}-${t.toCountry}` === corridorKey &&
-      now - new Date(t.timestamp).getTime() < 10 * 60 * 1000
-  );
-
-  if (corridorTx.length > 5) {
-    anomalyScore += 25;
-    reasons.push("Corridor evasion pattern");
-  }
-
-  // ================= MFA + ALERT =================
-  let mfaRequired = false;
-
-  if (finalScore > 80) {
-    mfaRequired = true;
-    reasons.push("MFA required due to critical risk");
-  }
-
-  // ================= FINAL RESPONSE =================
-  return {
-    riskScore: finalScore,
-    aiScore: Math.round(mlScore * 100),
-    isFraud: finalScore > 60,
-    alertLevel,
-    reasons,
-    mfaRequired,
-  };
-
-  // ================= RULE SCORE =================
-  let ruleBasedScore =
-    0.3 * ruleScore +
-    0.25 * behaviorScore +
-    0.25 * graphScore +
-    0.2 * anomalyScore;
+  // ================= HYBRID SCORING =================
+  let ruleBasedScore = 0.3 * ruleScore + 0.25 * behaviorScore + 0.25 * graphScore + 0.2 * anomalyScore;
 
   // ================= AI MODEL =================
-  const mlScore = predictFraud([
+  // Generate predictive AI score based on transaction heuristics
+  const mlScore = await predictFraud([
     tx.amount || 0,
     recentTx.length || 1,
     node.outDegree || 1,
-    tx.fromBank !== tx.toBank ? 1 : 0,
+    0, // placeholder for cross-bank
     node.avgAmount === 0 ? 1 : 0,
   ]);
 
-  // ================= HYBRID FUSION =================
-  let finalScore = Math.round(
-    0.6 * ruleBasedScore + 0.4 * mlScore * 100
-  );
+  // Combine Rule and ML Score
+  let finalScore = Math.round(0.6 * ruleBasedScore + 0.4 * mlScore * 100);
 
   // Time decay
   const decay = Math.exp(-(now - txTime) / (5 * 60 * 1000));
   finalScore *= decay;
-
   finalScore = Math.min(Math.round(finalScore), 100);
 
-  // ================= ALERT =================
-  let alertLevel = "SAFE";
-  if (finalScore > 80) alertLevel = "BLOCK";
-  else if (finalScore > 60) alertLevel = "INVESTIGATE";
-  else if (finalScore > 40) alertLevel = "WATCH";
+  // Determine Risk Level & Alert
+  let riskLevel = "LOW";
+  let status = "PENDING";
+  
+  if (finalScore > 80) {
+    riskLevel = "HIGH";
+    status = "BLOCKED";
+    reasons.push("Transaction blocked due to critical risk");
+  } else if (finalScore > 50) {
+    riskLevel = "MEDIUM";
+    status = "PENDING"; // Wait for review
+  } else {
+    riskLevel = "LOW";
+    status = "COMPLETED";
+  }
 
   return {
-    riskScore: finalScore,
+    fraudScore: finalScore,
     aiScore: Math.round(mlScore * 100),
-    isFraud: finalScore > 60,
-    alertLevel,
+    riskLevel,
+    status,
     reasons,
   };
 };

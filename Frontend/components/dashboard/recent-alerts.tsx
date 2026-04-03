@@ -1,8 +1,9 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { mockAlerts } from "@/lib/mock-data"
+import { mockAlerts, type Alert } from "@/lib/mock-data"
 import { AlertTriangle, RefreshCw, CheckCircle2, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -21,8 +22,22 @@ const statusConfig = {
 }
 
 export function RecentAlerts() {
+  const ALERTS_STORAGE_KEY = "fraudshield_alerts_override_v1"
+  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ALERTS_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Alert[]
+      if (Array.isArray(parsed) && parsed.length > 0) setAlerts(parsed)
+    } catch {
+      // Ignore localStorage parsing issues; fall back to defaults
+    }
+  }, [])
+
   return (
-    <Card className="border-border bg-card">
+    <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -30,13 +45,13 @@ export function RecentAlerts() {
             <CardDescription>Latest detected suspicious activities</CardDescription>
           </div>
           <Badge variant="destructive" className="text-sm">
-            {mockAlerts.filter((a) => a.status === "open").length} Open
+            {alerts.filter((a) => a.status === "open").length} Open
           </Badge>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {mockAlerts.slice(0, 5).map((alert) => {
+          {alerts.slice(0, 5).map((alert) => {
             const StatusIcon = statusConfig[alert.status].icon
             return (
               <div

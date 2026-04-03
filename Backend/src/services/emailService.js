@@ -4,13 +4,13 @@ export const sendEmail = async (to, report) => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: process.env.EMAIL,
-      pass: process.env.APP_PASSWORD,
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
   });
 
   await transporter.sendMail({
-    from: process.env.EMAIL,
+    from: process.env.EMAIL_USER,
     to,
     subject: "🚨 Fraud Detection Alert",
     text: `

@@ -1,8 +1,8 @@
-// Backend/src/kafka/kafkaClient.js
-
 import { Kafka } from "kafkajs";
+import dotenv from "dotenv";
+dotenv.config();
 
 export const kafka = new Kafka({
-  clientId: "graphsentinel-lite",
-  brokers: ["localhost:9092"]
+  clientId: process.env.KAFKA_CLIENT_ID || "fraud-detection-system",
+  brokers: [process.env.KAFKA_BROKER || "localhost:9092"],
 });

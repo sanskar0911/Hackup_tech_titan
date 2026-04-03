@@ -1,48 +1,21 @@
 import mongoose from "mongoose";
 
-const alertSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    enum: ["system", "analyst"],
-    required: true,
-  },
-
-  accountId: {
-    type: String,
-    required: true,
-  },
-
-  riskScore: {
-    type: Number,
-    required: true,
-  },
-
-  reasons: [
-    {
+const alertSchema = new mongoose.Schema(
+  {
+    transactionId: { type: String, required: true },
+    accountId: { type: String, required: true }, // The account that generated the alert
+    fraudScore: { type: Number, required: true },
+    riskLevel: { type: String, enum: ["LOW", "MEDIUM", "HIGH"], default: "MEDIUM" },
+    reasons: [{ type: String }],
+    status: {
       type: String,
+      enum: ["PENDING", "VERIFIED", "FRAUD", "CLOSED"],
+      default: "PENDING",
     },
-  ],
-
-  status: {
-    type: String,
-    enum: ["Sent", "User Responded", "Under Review", "Closed"],
-    default: "Sent",
+    userResponse: { type: String, default: "" },
+    analystNotes: { type: String, default: "" },
   },
-
-  userResponse: {
-    type: String,
-    default: "",
-  },
-
-  mfaRequired: {
-    type: Boolean,
-    default: false,
-  },
-
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  { timestamps: true }
+);
 
 export default mongoose.model("Alert", alertSchema);

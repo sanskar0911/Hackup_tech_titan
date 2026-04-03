@@ -1,39 +1,26 @@
 import Transaction from "../models/Transaction.js";
-import { analyzeTransaction } from "../services/fraudDetectionService.js";
 
 export const getFundFlow = async (req, res) => {
   try {
     const { accountId } = req.params;
 
-    let transactions = await Transaction.find({
+    // Use current DB models senderId / receiverId
+    const transactions = await Transaction.find({
       $or: [
-        { fromAccount: accountId },
-        { toAccount: accountId },
+        { senderId: accountId },
+        { receiverId: accountId },
       ],
-    });
-
-    // 🧠 fallback demo data
-    if (transactions.length === 0) {
-      transactions = [
-        { fromAccount: "A1", toAccount: "B1", amount: 50000, timestamp: new Date() },
-        { fromAccount: "B1", toAccount: "C1", amount: 120000, timestamp: new Date() },
-        { fromAccount: "C1", toAccount: "D1", amount: 80000, timestamp: new Date() },
-        { fromAccount: "D1", toAccount: "A1", amount: 90000, timestamp: new Date() },
-        { fromAccount: "A1", toAccount: "E1", amount: 30000, timestamp: new Date() },
-      ];
-    }
+    }).limit(100);
 
     const nodesMap = new Map();
     const edges = [];
 
     // 🔗 BUILD GRAPH
     for (const tx of transactions) {
-      const analysis = await analyzeTransaction(tx, transactions);
-
       // INIT NODES
-      if (!nodesMap.has(tx.fromAccount)) {
-        nodesMap.set(tx.fromAccount, {
-          id: tx.fromAccount,
+      if (!nodesMap.has(tx.senderId)) {
+        nodesMap.set(tx.senderId, {
+          id: tx.senderId,
           totalRisk: 0,
           count: 0,
           reasons: [],
@@ -41,9 +28,9 @@ export const getFundFlow = async (req, res) => {
         });
       }
 
-      if (!nodesMap.has(tx.toAccount)) {
-        nodesMap.set(tx.toAccount, {
-          id: tx.toAccount,
+      if (!nodesMap.has(tx.receiverId)) {
+        nodesMap.set(tx.receiverId, {
+          id: tx.receiverId,
           totalRisk: 0,
           count: 0,
           reasons: [],
@@ -52,42 +39,42 @@ export const getFundFlow = async (req, res) => {
       }
 
       // UPDATE SENDER
-      const sender = nodesMap.get(tx.fromAccount);
-      sender.totalRisk += analysis.riskScore;
+      const sender = nodesMap.get(tx.senderId);
+      sender.totalRisk += tx.fraudScore || 0;
       sender.count++;
-      sender.reasons.push(...analysis.reasons);
+      if (tx.reason) sender.reasons.push(tx.reason);
       sender.balance -= tx.amount;
 
       // UPDATE RECEIVER
-      const receiver = nodesMap.get(tx.toAccount);
+      const receiver = nodesMap.get(tx.receiverId);
       receiver.balance += tx.amount;
 
       // 🔥 EDGE
       edges.push({
-        id: `${tx.fromAccount}-${tx.toAccount}-${Date.now()}-${Math.random()}`,
-        source: tx.fromAccount,
-        target: tx.toAccount,
+        id: `${tx.senderId}-${tx.receiverId}-${Date.now()}-${Math.random()}`,
+        source: tx.senderId,
+        target: tx.receiverId,
         label: `₹${tx.amount}`,
-        animated: analysis.riskScore > 60,
+        animated: (tx.fraudScore || 0) > 60,
         style: {
           stroke:
-            analysis.riskScore > 80
+            (tx.fraudScore || 0) > 80
               ? "#ef4444"
-              : analysis.riskScore > 50
+              : (tx.fraudScore || 0) > 50
               ? "#f59e0b"
               : "#999",
-          strokeWidth: analysis.riskScore > 60 ? 2.5 : 1.5,
+          strokeWidth: (tx.fraudScore || 0) > 60 ? 2.5 : 1.5,
         },
         data: {
-          riskScore: analysis.riskScore,
-          reasons: analysis.reasons,
+          riskScore: tx.fraudScore,
+          reason: tx.reason,
         },
       });
     }
 
-    // 🔥 POSITIONING (FIXED — IMPORTANT)
+    // 🔥 POSITIONING
     let index = 0;
-    const spacingX = 250; // increased spacing
+    const spacingX = 250; 
     const spacingY = 180;
 
     const nodes = Array.from(nodesMap.values()).map((n) => {

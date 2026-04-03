@@ -1,17 +1,15 @@
-import { Kafka } from "kafkajs";
+import { kafka } from "./kafkaClient.js";
 
-const kafka = new Kafka({
-  clientId: "fraud-system",
-  brokers: ["localhost:9092"],
-});
-
-let producer;
+const producer = kafka.producer();
 
 // ✅ START PRODUCER
 export const startProducer = async () => {
-  producer = kafka.producer();
-  await producer.connect();
-  console.log("✅ Kafka Producer Connected");
+  try {
+    await producer.connect();
+    console.log("✅ Kafka Producer Connected");
+  } catch (error) {
+    console.error("❌ Kafka Producer Failed to Connect:", error);
+  }
 };
 
 // ✅ SEND TRANSACTION
@@ -21,7 +19,7 @@ export const produceTransaction = async (transaction) => {
       topic: "transactions",
       messages: [{ value: JSON.stringify(transaction) }],
     });
-    console.log("📤 Transaction sent:", transaction);
+    // console.log("📤 Transaction sent:", transaction.transactionId);
   } catch (error) {
     console.error("❌ Produce error:", error);
   }

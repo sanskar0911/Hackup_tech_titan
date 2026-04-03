@@ -1,56 +1,61 @@
 import express from "express";
 import http from "http";
-import { Server } from "socket.io";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+
 import connectDB from "./config/db.js";
+import { initSocket } from "./socket/socket.js";
+
+// ✅ KAFKA & PIPELINE
+import { startProducer } from "./kafka/producer.js";
+import { startConsumer } from "./kafka/consumer.js";
 
 // ✅ ROUTES
 import transactionRoutes from "./routes/transactionRoutes.js";
 import alertRoutes from "./routes/alertRoutes.js";
 import investigationRoutes from "./routes/investigationRoutes.js";
 import fundFlowRoutes from "./routes/fundFlowRoutes.js";
-import demoRoutes from "./routes/demoRoutes.js";
+import simulationRoutes from "./routes/simulationRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
-
-// ✅ KAFKA
-import { startProducer } from "./kafka/producer.js";
-import { startConsumer } from "./kafka/consumer.js";
-import { startAlertConsumer } from "./kafka/alertConsumer.js";
 
 dotenv.config();
 
 // ================= APP INIT =================
 const app = express();
 
-// ================= MIDDLEWARE =================
-app.use(cors());
+// ================= GLOBAL MIDDLEWARE =================
+app.use(helmet());
+app.use(cors({ origin: "*" }));
 app.use(express.json());
+
+// Rate Limiting to prevent basic DDoS and endpoint abuse
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: "Too many requests from this IP, please try again after 15 minutes.",
+});
+app.use("/api/", limiter);
+
+// ================= SERVER + SOCKET =================
+const server = http.createServer(app);
+initSocket(server); // attach the websocket engine globally via our module
 
 // ================= ROUTES =================
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/investigation", investigationRoutes);
 app.use("/api/fund-flow", fundFlowRoutes);
-app.use("/api/demo", demoRoutes);
+app.use("/api/simulation", simulationRoutes);
 app.use("/api/feedback", feedbackRoutes);
 
-// ================= SERVER + SOCKET =================
-const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: { origin: "*" },
-});
-
-// ✅ Make io globally accessible
-global.io = io;
-
-// ================= SOCKET EVENTS =================
-io.on("connection", (socket) => {
-  console.log("🔌 User connected:", socket.id);
-
-  socket.on("disconnect", () => {
-    console.log("❌ User disconnected:", socket.id);
+// ================= ERROR HANDLING MIDDLEWARE =================
+app.use((err, req, res, next) => {
+  console.error("🔥 Error Handler:", err.stack);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal Server Error",
   });
 });
 
@@ -62,30 +67,24 @@ const startServer = async () => {
     // ✅ Connect DB
     await connectDB();
 
-    // 🔥 Start Kafka Services (parallel for speed)
-    await Promise.allSettled([
-      startProducer(),
-      startConsumer(),
-      startAlertConsumer(),
-    ]);
+    // 🔥 Start Kafka Services explicitly and gracefully
+    await startProducer();
+    await startConsumer();
 
-    console.log("✅ Kafka fully running");
+    console.log("✅ Stream engine running...");
 
     const PORT = process.env.PORT || 5000;
 
     server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📡 Socket.IO ready`);
-      console.log(`🎬 Demo endpoint: http://localhost:${PORT}/api/demo/run`);
+      console.log(`🚀 Production Server running on port ${PORT}`);
+      console.log(`📡 WebSocket Engine Ready`);
+      console.log(`🎬 Run Live Simulation via: POST http://localhost:${PORT}/api/simulation/start`);
     });
 
   } catch (error) {
-    console.error("❌ Server startup error:", error);
+    console.error("❌ Fatal Startup Error:", error);
     process.exit(1);
   }
 };
 
 startServer();
-
-// ================= EXPORT IO =================
-export { io };

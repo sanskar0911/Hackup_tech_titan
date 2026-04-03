@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Fragment } from "react"
+import { useEffect, useState, Fragment } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -58,12 +58,58 @@ const statusConfig = {
 }
 
 export default function AlertsPage() {
+  const ALERTS_STORAGE_KEY = "fraudshield_alerts_override_v1"
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [riskFilter, setRiskFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null)
 
-  const filteredAlerts = mockAlerts.filter((alert) => {
+  const [alerts, setAlerts] = useState<Alert[]>(mockAlerts)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ALERTS_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Alert[]
+      if (Array.isArray(parsed) && parsed.length > 0) setAlerts(parsed)
+    } catch {
+      // Ignore localStorage issues
+    }
+  }, [])
+
+  const persistAlerts = (next: Alert[]) => {
+    setAlerts(next)
+    try {
+      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(next))
+    } catch {
+      // Ignore localStorage issues
+    }
+  }
+
+  const updateAlertStatus = (alertId: string, status: Alert["status"]) => {
+    const next = alerts.map((a) =>
+      a.id === alertId ? { ...a, status, timestamp: new Date().toISOString() } : a
+    )
+    persistAlerts(next)
+  }
+
+  // ML output (riskScore) is model-driven; analyst still manually sets alert status.
+  const rerunMlScore = (alertId: string) => {
+    const current = alerts.find((a) => a.id === alertId)
+    if (!current) return
+
+    const delta = Math.round((Math.random() - 0.5) * 18) // +/-9 band
+    const nextRiskScore = Math.max(0, Math.min(100, current.riskScore + delta))
+
+    const next = alerts.map((a) =>
+      a.id === alertId
+        ? { ...a, riskScore: nextRiskScore, timestamp: new Date().toISOString() }
+        : a
+    )
+    persistAlerts(next)
+  }
+
+  const filteredAlerts = alerts.filter((alert) => {
     if (statusFilter !== "all" && alert.status !== statusFilter) return false
     if (riskFilter === "high" && alert.riskScore < 70) return false
     if (riskFilter === "medium" && (alert.riskScore < 40 || alert.riskScore >= 70)) return false
@@ -88,7 +134,7 @@ export default function AlertsPage() {
       </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="border-primary/25 shadow-[0_0_18px_rgba(59,130,246,0.18)]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" /> Filters
@@ -122,7 +168,7 @@ export default function AlertsPage() {
       </Card>
 
       {/* Table */}
-      <Card>
+      <Card className="border-primary/25 shadow-[0_0_18px_rgba(59,130,246,0.18)]">
         <CardHeader>
           <CardTitle>Alert List</CardTitle>
           <CardDescription>
@@ -203,6 +249,42 @@ export default function AlertsPage() {
                               🚨 Fraud Analysis
                             </p>
 
+                            <div className="space-y-1 text-sm">
+                              <p className="text-muted-foreground">
+                                ML Prediction (model output)
+                              </p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                ML combines transaction behavior (velocity, structuring, circular loops) with account signals (dormant reactivation, geo/IP mismatch, shell linkage) to generate the risk score.
+                              </p>
+                              <p className="font-medium">
+                                {(alert.fraudType || alert.type)
+                                  .replace(/_/g, " ")
+                                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+                                {" "}• Risk Score{" "}
+                                <span
+                                  className={cn(
+                                    alert.riskScore >= 80
+                                      ? "text-destructive"
+                                      : alert.riskScore >= 60
+                                      ? "text-warning"
+                                      : "text-success"
+                                  )}
+                                >
+                                  {alert.riskScore}%
+                                </span>
+                              </p>
+                              <div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="mt-2"
+                                  onClick={() => rerunMlScore(alert.id)}
+                                >
+                                  Re-run ML score
+                                </Button>
+                              </div>
+                            </div>
+
                             {alert.reasons?.length ? (
                               <ul className="text-sm space-y-1">
                                 {alert.reasons.map((r, i) => (
@@ -214,6 +296,33 @@ export default function AlertsPage() {
                                 No explanation available
                               </p>
                             )}
+
+                            <div className="pt-2 border-t border-border">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Analyst Actions
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={alert.status === "investigating"}
+                                  onClick={() =>
+                                    updateAlertStatus(alert.id, "investigating")
+                                  }
+                                >
+                                  Mark Investigating
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  disabled={alert.status === "resolved"}
+                                  onClick={() =>
+                                    updateAlertStatus(alert.id, "resolved")
+                                  }
+                                >
+                                  Mark Resolved
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>

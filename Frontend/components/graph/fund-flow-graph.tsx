@@ -27,8 +27,10 @@ import { X, AlertTriangle } from "lucide-react"
 
 // ✅ SOCKET IMPORT
 import { io } from "socket.io-client"
+import { API_BASE_URL } from "@/lib/api-service"
+import { graphNodes as localGraphNodes, graphEdges as localGraphEdges } from "@/lib/mock-data"
 
-const socket = io("http://localhost:5000")
+const socket = io(API_BASE_URL, { autoConnect: false })
 
 const nodeTypes = {
   accountNode: AccountNode,
@@ -52,18 +54,19 @@ export function FundFlowGraph() {
   useEffect(() => {
     const fetchGraph = async () => {
       try {
-        const response = await getFundFlow("A1")
+        const response = await getFundFlow("ACC001")
 
         const data =
           (response as any)?.nodes && (response as any)?.edges
             ? response
             : (response as any)?.data?.nodes && (response as any)?.data?.edges
               ? (response as any).data
-              : { nodes: [], edges: [] }
+              : { nodes: localGraphNodes, edges: localGraphEdges }
 
-        console.log("FINAL GRAPH DATA:", data)
+        const sourceNodes = Array.isArray(data.nodes) && data.nodes.length > 0 ? data.nodes : localGraphNodes
+        const sourceEdges = Array.isArray(data.edges) && data.edges.length > 0 ? data.edges : localGraphEdges
 
-        const safeNodes = (data.nodes || []).map((node: any, index: number) => ({
+        const safeNodes = (sourceNodes || []).map((node: any, index: number) => ({
           id: node.id || `node-${index}`,
           type: node.type || "accountNode",
           position: {
@@ -83,7 +86,7 @@ export function FundFlowGraph() {
           },
         }))
 
-        const safeEdges = (data.edges || []).map((edge: any, index: number) => ({
+        const safeEdges = (sourceEdges || []).map((edge: any, index: number) => ({
           id: edge.id || `edge-${index}`,
           source: edge.source,
           target: edge.target,
@@ -121,6 +124,7 @@ export function FundFlowGraph() {
 
   // 🔥 SOCKET LISTENER (AUTO FRAUD HIGHLIGHT)
   useEffect(() => {
+    socket.connect()
     socket.on("fraud-alert", (alert: any) => {
       console.log("🚨 FRAUD ALERT RECEIVED:", alert)
 
@@ -140,6 +144,7 @@ export function FundFlowGraph() {
 
     return () => {
       socket.off("fraud-alert")
+      socket.disconnect()
     }
   }, [reactFlowInstance])
 

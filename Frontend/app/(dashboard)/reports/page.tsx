@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -11,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockAccounts, mockAlerts, mockDashboardStats } from "@/lib/mock-data"
+import { mockAccounts, mockAlerts, mockDashboardStats, mockTransactions, type Alert } from "@/lib/mock-data"
 import {
   FileText,
   Download,
@@ -57,8 +58,60 @@ export default function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState("executive")
   const [dateRange, setDateRange] = useState("7d")
 
-  const suspiciousAccounts = mockAccounts.filter((a) => a.isSuspicious)
-  const openAlerts = mockAlerts.filter((a) => a.status === "open")
+  const ALERTS_STORAGE_KEY = "fraudshield_alerts_override_v1"
+
+  const [accountIdInput, setAccountIdInput] = useState("")
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
+
+  const [alertsOverride, setAlertsOverride] = useState<Alert[]>(mockAlerts)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ALERTS_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Alert[]
+      if (Array.isArray(parsed) && parsed.length > 0) setAlertsOverride(parsed)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const suspiciousAccounts = mockAccounts
+    .filter((a) => a.isSuspicious)
+    .sort((a, b) => b.riskScore - a.riskScore)
+
+  const openAlerts = alertsOverride.filter((a) => a.status === "open")
+
+  const selectedAccount = activeAccountId
+    ? mockAccounts.find((a) => a.id.toLowerCase() === activeAccountId.toLowerCase()) || null
+    : null
+
+  const accountTransactions = selectedAccount
+    ? mockTransactions.filter((t) => t.from === selectedAccount.id || t.to === selectedAccount.id)
+    : []
+
+  const accountAlerts = selectedAccount
+    ? alertsOverride
+        .filter((a) => a.accountId === selectedAccount.id)
+        .slice()
+        .sort((x, y) => new Date(y.timestamp).getTime() - new Date(x.timestamp).getTime())
+    : []
+
+  const accountSuspiciousTransactions = accountTransactions.filter((t) => t.status !== "normal")
+
+  const activeExecutiveStats = selectedAccount
+    ? {
+        totalTransactions: accountTransactions.length,
+        suspiciousTransactions: accountSuspiciousTransactions.length,
+        highRiskAccounts: selectedAccount.isSuspicious && selectedAccount.riskScore >= 75 ? 1 : 0,
+        fraudAlerts: accountAlerts.length,
+        totalVolume: accountTransactions.reduce((sum, t) => sum + t.amount, 0),
+        avgRiskScore:
+          accountTransactions.length > 0
+            ? Math.round(accountTransactions.reduce((sum, t) => sum + t.riskScore, 0) / accountTransactions.length)
+            : 0,
+      }
+    : mockDashboardStats
 
   return (
     <div className="space-y-6">
@@ -101,7 +154,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Report Configuration */}
-      <Card className="border-border bg-card">
+      <Card className="border-border bg-card border-primary/25 shadow-[0_0_18px_rgba(59,130,246,0.18)]">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -125,21 +178,39 @@ export default function ReportsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <Button className="gap-2">
-              <FileDown className="h-4 w-4" />
-              Download PDF
-            </Button>
-            <Button variant="outline" className="gap-2">
-              <Printer className="h-4 w-4" />
-              Print Report
-            </Button>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <Input
+                value={accountIdInput}
+                onChange={(e) => setAccountIdInput(e.target.value)}
+                placeholder="Optional: Enter Account ID (e.g., ACC001)"
+                className="border-primary/20"
+              />
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setActiveAccountId(accountIdInput.trim() ? accountIdInput.trim().toUpperCase() : null)
+                }
+              >
+                Generate
+              </Button>
+            </div>
+            <div className="flex gap-4">
+              <Button className="gap-2">
+                <FileDown className="h-4 w-4" />
+                Download PDF
+              </Button>
+              <Button variant="outline" className="gap-2">
+                <Printer className="h-4 w-4" />
+                Print Report
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Report Preview */}
-      <Card className="border-border bg-card">
+      <Card className="border-border bg-card border-primary/25 shadow-[0_0_18px_rgba(59,130,246,0.18)]">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -159,6 +230,15 @@ export default function ReportsPage() {
                 <div>
                   <h2 className="text-xl font-bold text-card-foreground">
                     FraudShield - {reportTypes.find((r) => r.id === selectedReport)?.name}
+                    {selectedAccount ? (
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        • Account: <span className="font-mono">{selectedAccount.id}</span>
+                      </span>
+                    ) : activeAccountId ? (
+                      <span className="ml-2 text-sm font-normal text-destructive">
+                        • Account not found: <span className="font-mono">{activeAccountId}</span>
+                      </span>
+                    ) : null}
                   </h2>
                   <p className="text-sm text-muted-foreground">
                     Generated on {new Date().toLocaleDateString()} | Period: Last{" "}
@@ -181,24 +261,28 @@ export default function ReportsPage() {
                 <div className="rounded-lg bg-card p-4 border border-border">
                   <p className="text-sm text-muted-foreground">Total Transactions</p>
                   <p className="text-2xl font-bold text-card-foreground">
-                    {mockDashboardStats.totalTransactions.toLocaleString()}
+                    {activeExecutiveStats.totalTransactions.toLocaleString()}
                   </p>
                 </div>
                 <div className="rounded-lg bg-card p-4 border border-border">
                   <p className="text-sm text-muted-foreground">Suspicious Activity</p>
                   <p className="text-2xl font-bold text-warning">
-                    {mockDashboardStats.suspiciousTransactions}
+                    {activeExecutiveStats.suspiciousTransactions}
                   </p>
                 </div>
                 <div className="rounded-lg bg-card p-4 border border-border">
                   <p className="text-sm text-muted-foreground">High-Risk Accounts</p>
                   <p className="text-2xl font-bold text-destructive">
-                    {suspiciousAccounts.length}
+                    {activeExecutiveStats.highRiskAccounts}
                   </p>
                 </div>
                 <div className="rounded-lg bg-card p-4 border border-border">
                   <p className="text-sm text-muted-foreground">Open Alerts</p>
-                  <p className="text-2xl font-bold text-destructive">{openAlerts.length}</p>
+                  <p className="text-2xl font-bold text-destructive">
+                    {selectedAccount
+                      ? accountAlerts.filter((a) => a.status === "open").length
+                      : openAlerts.length}
+                  </p>
                 </div>
               </div>
             </div>
@@ -230,16 +314,14 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {suspiciousAccounts.slice(0, 5).map((account) => (
+                    {(selectedAccount ? [selectedAccount] : suspiciousAccounts.slice(0, 5)).map((account) => (
                       <tr key={account.id} className="border-t border-border">
                         <td className="px-4 py-2 font-mono">{account.id}</td>
                         <td className="px-4 py-2">{account.name}</td>
                         <td className="px-4 py-2 capitalize">{account.type}</td>
                         <td className="px-4 py-2">{account.country}</td>
                         <td className="px-4 py-2">
-                          <span className="text-destructive font-semibold">
-                            {account.riskScore}%
-                          </span>
+                          <span className="text-destructive font-semibold">{account.riskScore}%</span>
                         </td>
                       </tr>
                     ))}
@@ -254,7 +336,7 @@ export default function ReportsPage() {
                 Recent Fraud Alerts
               </h3>
               <div className="space-y-3">
-                {mockAlerts.slice(0, 3).map((alert) => (
+                {(selectedAccount ? accountAlerts : alertsOverride.slice(0, 3)).map((alert) => (
                   <div
                     key={alert.id}
                     className="rounded-lg bg-card p-4 border border-border flex items-start justify-between"
