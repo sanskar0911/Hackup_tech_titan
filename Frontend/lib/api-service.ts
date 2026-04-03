@@ -133,9 +133,13 @@ class FraudDetectionAPI {
 
   // 🔥 FINAL FIX: MATCH BACKEND ROUTE
   async investigateAccount(accountId: string) {
-    return {
-      nodes: [],
-      edges: []
+    try {
+      const res = await fetch(`${this.baseUrl}/api/graph/${accountId}`);
+      if (!res.ok) throw new Error("Failed to fetch graph data");
+      return await res.json();
+    } catch(err) {
+      console.error(err);
+      return { nodes: [], edges: [] };
     }
   }
 

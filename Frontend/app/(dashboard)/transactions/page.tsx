@@ -13,6 +13,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
   Table,
   TableBody,
   TableCell,
@@ -43,6 +50,10 @@ export interface Transaction {
   status: "normal" | "suspicious" | "flagged" | string;
   riskScore: number;
   timestamp: string;
+  reason?: string;
+  deviceId?: string;
+  location?: string;
+  channel?: string;
 }
 
 const statusConfig: any = {
@@ -86,6 +97,10 @@ export default function TransactionsPage() {
           status: d.riskLevel || d.status || "COMPLETED",
           riskScore: d.fraudScore ?? d.riskScore ?? 0,
           timestamp: d.createdAt || d.timestamp || new Date().toISOString(),
+          reason: d.reason || d.description || d.fraudType?.replace(/_/g, " ") || "Standard Processing",
+          deviceId: d.deviceId || d.fromIP || "Secure Web Portal",
+          location: d.location || (d.fromCity ? `${d.fromCity}, ${d.fromCountry}` : "Domestic Routing"),
+          channel: d.channel || "Mobile Banking App",
         }));
         setTransactions(mapped);
       } catch (err) {
@@ -286,10 +301,86 @@ export default function TransactionsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle className="flex justify-between items-center pr-4">
+                              <span>Transaction Insights</span>
+                              <Badge variant="outline" className={cn("text-xs font-bold", txn.riskScore >= 75 ? "text-destructive border-destructive" : txn.riskScore >= 40 ? "text-warning border-warning" : "text-success border-success")}>
+                                {txn.riskScore}% Risk
+                              </Badge>
+                            </DialogTitle>
+                          </DialogHeader>
+                          
+                          <div className="space-y-4 pt-2">
+                            {/* Summary Box */}
+                            <div className="flex bg-muted/50 p-4 rounded-lg justify-between items-center shadow-inner">
+                              <div className="flex flex-col">
+                                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Amount</span>
+                                <span className="text-lg font-bold text-foreground">₹{txn.amount.toLocaleString("en-IN")}</span>
+                              </div>
+                              <div className="flex flex-col items-end">
+                                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Status</span>
+                                <Badge className={cn("gap-1 mt-1", statusConfig[txn.status]?.color || statusConfig.normal.color)}>
+                                  <StatusIcon className="h-3 w-3" />
+                                  {statusConfig[txn.status]?.label || "Normal"}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            {/* Timeline Detail */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="flex flex-col px-1">
+                                <span className="text-xs text-muted-foreground font-semibold">Sender</span>
+                                <span className="font-mono text-sm break-all">{txn.from}</span>
+                              </div>
+                              <div className="flex flex-col px-1 text-right">
+                                <span className="text-xs text-muted-foreground font-semibold">Receiver</span>
+                                <span className="font-mono text-sm break-all">{txn.to}</span>
+                              </div>
+                            </div>
+
+                            {/* Additional Metadata */}
+                            <div className="border border-border rounded-lg overflow-hidden flex flex-col text-sm">
+                              <div className="flex border-b border-border bg-muted/30">
+                                <div className="w-1/3 p-2 font-medium text-muted-foreground border-r border-border">Type</div>
+                                <div className="w-2/3 p-2">{typeLabels[txn.type] || txn.type}</div>
+                              </div>
+                              <div className="flex border-b border-border bg-muted/10">
+                                <div className="w-1/3 p-2 font-medium text-muted-foreground border-r border-border">Time</div>
+                                <div className="w-2/3 p-2">{new Date(txn.timestamp).toLocaleString()}</div>
+                              </div>
+                              <div className="flex border-b border-border bg-muted/30">
+                                <div className="w-1/3 p-2 font-medium text-muted-foreground border-r border-border">Device ID</div>
+                                <div className="w-2/3 p-2 font-mono text-xs">{txn.deviceId}</div>
+                              </div>
+                              <div className="flex border-b border-border bg-muted/10">
+                                <div className="w-1/3 p-2 font-medium text-muted-foreground border-r border-border">Location</div>
+                                <div className="w-2/3 p-2">{txn.location}</div>
+                              </div>
+                              <div className="flex bg-muted/30">
+                                <div className="w-1/3 p-2 font-medium text-muted-foreground border-r border-border">Channel</div>
+                                <div className="w-2/3 p-2">{txn.channel}</div>
+                              </div>
+                            </div>
+
+                            {/* Fraud Analysis Box */}
+                            <div className="bg-destructive/5 border border-destructive/20 p-4 rounded-lg flex flex-col gap-2">
+                               <span className="text-xs font-bold text-destructive uppercase flex items-center gap-2">
+                                 <AlertTriangle className="w-4 h-4" /> 
+                                  AI Analysis Reason
+                               </span>
+                               <span className="text-sm font-medium text-foreground">{txn.reason}</span>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </TableCell>
                   </TableRow>
                 )

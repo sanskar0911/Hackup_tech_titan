@@ -33,6 +33,15 @@ const generateFraudPatterns = () => {
 
     // 🟡 Large suspicious
     { transactionId: `TXN-${ts}-7`, senderId: "A2", receiverId: "A5", amount: 120000, timestamp: new Date() },
+
+    // 🟢 Fan-out burst (11 transactions from same source to unique receivers)
+    ...Array.from({ length: 11 }).map((_, i) => ({
+      transactionId: `TXN-${ts}-fan-${i}`,
+      senderId: "FO_SENDER_1",
+      receiverId: `FO_RECEIVER_${i}`,
+      amount: 1500,
+      timestamp: new Date()
+    })),
   ];
 };
 

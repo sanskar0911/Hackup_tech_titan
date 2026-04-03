@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -44,6 +45,17 @@ const reportTypes = [
 ]
 
 export default function ReportsPage() {
+  return (
+    <Suspense fallback={<div>Loading reports...</div>}>
+      <ReportsContent />
+    </Suspense>
+  )
+}
+
+function ReportsContent() {
+  const searchParams = useSearchParams()
+  const accountParam = searchParams.get("accountId")
+
   const [selectedReport, setSelectedReport] = useState("executive")
   const [dateRange, setDateRange] = useState("7d")
 
@@ -53,6 +65,14 @@ export default function ReportsPage() {
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
 
   const [alertsOverride, setAlertsOverride] = useState<Alert[]>(mockAlerts)
+
+  useEffect(() => {
+    if (accountParam) {
+      const cleanId = accountParam.trim().toUpperCase()
+      setActiveAccountId(cleanId)
+      setAccountIdInput(cleanId)
+    }
+  }, [accountParam])
 
   useEffect(() => {
     try {
@@ -123,6 +143,28 @@ export default function ReportsPage() {
     const anchor = document.createElement("a")
     anchor.href = url
     anchor.download = `report-${accountId}.txt`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadAnalystReport = () => {
+    const lines = [
+      `Analyst Daily Operations Report`,
+      `Date: ${new Date().toLocaleDateString()}`,
+      `Total Suspicious Accounts: ${suspiciousAccounts.length}`,
+      `Total Open Alerts: ${openAlerts.length}`,
+      "",
+      "--- CRITICAL ESCALATIONS ---",
+      ...openAlerts.filter(a => a.riskScore >= 80).map(a => `- ${a.id} | ${a.type} | Risk: ${a.riskScore}%`),
+      "",
+      "--- PENDING TASKS ---",
+      ...openAlerts.filter(a => a.riskScore < 80).map(a => `- ${a.id} | ${a.type} | Risk: ${a.riskScore}%`),
+    ]
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `analyst-daily-ops-${new Date().toISOString().slice(0, 10)}.txt`
     anchor.click()
     URL.revokeObjectURL(url)
   }
@@ -240,13 +282,16 @@ export default function ReportsPage() {
               </Button>
             </div>
             <div className="flex gap-4">
-              <Button className="gap-2">
+              <Button className="gap-2" onClick={() => {
+                if (activeAccountId) downloadUserReport(activeAccountId)
+                else alert("Please enter an Account ID to download the User Report")
+              }}>
                 <FileDown className="h-4 w-4" />
-                Download PDF
+                Download User Report
               </Button>
-              <Button variant="outline" className="gap-2">
-                <Printer className="h-4 w-4" />
-                Print Report
+              <Button variant="outline" className="gap-2" onClick={downloadAnalystReport}>
+                <FileText className="h-4 w-4" />
+                Download Analyst Report
               </Button>
             </div>
           </div>

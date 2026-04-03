@@ -40,11 +40,17 @@ export interface Alert {
   fraudType?: string;
   fraudScore?: number;
   riskScore: number;
+  amount?: number;
   status: "open" | "investigating" | "resolved" | "PENDING" | "VERIFIED" | "FRAUD" | "CLOSED" | string;
   description: string;
   reasons?: string[];
   timestamp: string;
   createdAt?: string;
+  risk_breakdown?: Array<{
+    type: string;
+    reason: string;
+    contribution: number;
+  }>;
 }
 
 const alertTypeLabels: Record<string, string> = {

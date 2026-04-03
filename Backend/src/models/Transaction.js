@@ -17,4 +17,9 @@ const transactionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// 🚀 Optimization: Indexes for faster query resolution
+transactionSchema.index({ senderId: 1, createdAt: -1 });
+transactionSchema.index({ receiverId: 1, createdAt: -1 });
+transactionSchema.index({ status: 1 });
+
 export default mongoose.model("Transaction", transactionSchema);

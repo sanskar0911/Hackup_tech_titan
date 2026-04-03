@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
-import { Bell, Search, Moon, Sun, User } from "lucide-react"
+import { Bell, Search, Moon, Sun, User, AlertTriangle } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -17,11 +18,25 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 export function TopNavbar() {
   const { theme, setTheme } = useTheme()
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const [alertCount] = useState(12)
+  const [alerts, setAlerts] = useState<any[]>([])
 
   useEffect(() => {
     setMounted(true)
+    const loadAlerts = async () => {
+      try {
+        const { fraudApi } = await import("@/lib/api-service")
+        const fetched = await fraudApi.getAlerts()
+        
+        // Filter out closed ones usually, but here we just take the highest risk ones
+        const sorted = (fetched as any[]).sort((a, b) => b.riskScore - a.riskScore).slice(0, 4)
+        setAlerts(sorted)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    loadAlerts()
   }, [])
 
   return (
@@ -54,30 +69,33 @@ export function TopNavbar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
               <Bell className="h-5 w-5" />
-              {alertCount > 0 && (
+              {alerts.length > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                  {alertCount}
+                  {alerts.length}
                 </span>
               )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Fraud Alerts</DropdownMenuLabel>
+            <DropdownMenuLabel>Highest Risk Alerts</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="flex flex-col items-start gap-1">
-              <span className="font-medium text-destructive">Circular Transaction Detected</span>
-              <span className="text-xs text-muted-foreground">ACC001 → ACC002 → ACC003 → ACC001</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1">
-              <span className="font-medium text-warning">Structuring Alert</span>
-              <span className="text-xs text-muted-foreground">Multiple sub-threshold transactions</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-col items-start gap-1">
-              <span className="font-medium text-destructive">Rapid Transfer</span>
-              <span className="text-xs text-muted-foreground">5 transfers in 10 minutes</span>
-            </DropdownMenuItem>
+            {alerts.length > 0 ? alerts.map((alert, idx) => (
+              <DropdownMenuItem 
+                key={idx} 
+                className="flex flex-col items-start gap-1 cursor-pointer"
+                onClick={() => router.push(`/fund-flow`)}
+              >
+                <div className="flex w-full justify-between items-center">
+                  <span className="font-medium text-destructive">{alert.type || "Suspicious Activity"}</span>
+                  <span className="text-xs font-bold text-destructive">Risk: {alert.riskScore}%</span>
+                </div>
+                <span className="text-xs text-muted-foreground">{alert.description || `Account: ${alert.accountId}`}</span>
+              </DropdownMenuItem>
+            )) : (
+              <div className="p-4 text-center text-sm text-muted-foreground">No active alerts</div>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-center text-primary">
+            <DropdownMenuItem className="text-center text-primary cursor-pointer w-full justify-center" onClick={() => router.push('/alerts')}>
               View all alerts
             </DropdownMenuItem>
           </DropdownMenuContent>

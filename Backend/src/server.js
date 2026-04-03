@@ -20,11 +20,17 @@ import fundFlowRoutes from "./routes/fundFlowRoutes.js";
 import simulationRoutes from "./routes/simulationRoutes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import statsRoutes from "./routes/statsRoutes.js";
+import graphRoutes from "./routes/graphRoutes.js";
 
 dotenv.config();
 
 // ================= APP INIT =================
 const app = express();
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Do not crash the process for Kafka connection issues in demo mode
+});
 
 // ================= GLOBAL MIDDLEWARE =================
 app.use(helmet());
@@ -51,6 +57,7 @@ app.use("/api/fund-flow", fundFlowRoutes);
 app.use("/api/simulation", simulationRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/graph", graphRoutes);
 
 // ================= ERROR HANDLING MIDDLEWARE =================
 app.use((err, req, res, next) => {

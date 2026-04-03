@@ -1,34 +1,62 @@
 import GraphEdge from '../models/GraphEdge.js';
+import { detectCircularPattern } from './patterns/circular.js';
+import { detectFanOutPattern } from './patterns/fanout.js';
+import { detectSmurfingPattern } from './patterns/smurfing.js';
+import { detectSleeperPattern } from './patterns/sleeper.js';
+import { detectCrossBankPattern } from './patterns/crossBank.js';
+import { detectDriftPattern } from './patterns/drift.js';
 
 class GraphFraudDetector {
   /**
    * Evaluates if a transaction introduces significant graph-based risk
-   * (e.g. cycle creation, fan-out matching, complex layering)
+   * (e.g. cycle creation, fan-out matching, complex layering, sleeper)
    */
-  async evaluateGraphRisk(sourceId, targetId, amount, transactionId) {
+  async evaluateGraphRisk(sourceId, targetId, amount, transactionId, sourceBankId, targetBankId) {
     let riskScore = 0;
     const reasons = [];
 
-    // Check for Circular Transactions (Cycle of length up to 4)
-    // Concept: source -> target -> A -> B -> source
-    const cycleRisk = await this.detectCycle(sourceId, targetId);
+    // 1. Check for Circular Transactions
+    const cycleRisk = await detectCircularPattern(sourceId, targetId);
     if (cycleRisk.detected) {
       riskScore += 40 * cycleRisk.confidence;
       reasons.push(cycleRisk.explanation);
     }
 
-    // Check for Rapid Fan-Out (source is sending to many unique nodes quickly)
-    const fanOutRisk = await this.detectRapidFanOut(sourceId);
+    // 2. Check for Rapid Fan-Out
+    const fanOutRisk = await detectFanOutPattern(sourceId);
     if (fanOutRisk.detected) {
       riskScore += 30 * fanOutRisk.confidence;
       reasons.push(fanOutRisk.explanation);
     }
     
-    // Check for Smurfing / Layering (Multiple small txs to same node, or through intermediary)
-    const smurfingRisk = await this.detectSmurfing(sourceId, targetId, amount);
+    // 3. Check for Smurfing / Layering
+    const smurfingRisk = await detectSmurfingPattern(sourceId, targetId, amount);
     if (smurfingRisk.detected) {
       riskScore += 35 * smurfingRisk.confidence;
       reasons.push(smurfingRisk.explanation);
+    }
+
+    // 4. Check for Sleeper Account
+    const sleeperRisk = await detectSleeperPattern(sourceId, amount);
+    if (sleeperRisk.detected) {
+      riskScore += 20 * sleeperRisk.confidence;
+      reasons.push(sleeperRisk.explanation);
+    }
+
+    // 5. Check for Cross-Bank Risk
+    if (sourceBankId && targetBankId) {
+       const crossBankRisk = await detectCrossBankPattern(sourceBankId, targetBankId);
+       if (crossBankRisk.detected) {
+         riskScore += 15 * crossBankRisk.confidence;
+         reasons.push(crossBankRisk.explanation);
+       }
+    }
+
+    // 6. Check for Behavioral Drift
+    const driftRisk = await detectDriftPattern(sourceId, amount);
+    if (driftRisk.detected) {
+      riskScore += 10 * driftRisk.confidence;
+      reasons.push(driftRisk.explanation);
     }
 
     return {
@@ -36,72 +64,6 @@ class GraphFraudDetector {
       contribution: riskScore,
       reason: reasons.join(" | ") || "No abnormal network flows detected"
     };
-  }
-
-  /**
-   * Detects a cycle from target back to source using a simple 3-hop BFS.
-   */
-  async detectCycle(originalSource, newTarget) {
-    // We are about to add edge originalSource -> newTarget.
-    // If there is a path from newTarget -> originalSource, we have a cycle.
-    
-    // Perform BFS up to 3 hops
-    let queue = [{ id: newTarget, depth: 0 }];
-    const visited = new Set();
-    visited.add(newTarget);
-    
-    while(queue.length > 0) {
-      const current = queue.shift();
-      if (current.depth >= 3) continue;
-
-      const edges = await GraphEdge.find({ sourceAccountId: current.id });
-      for (const edge of edges) {
-        if (edge.targetAccountId === originalSource) {
-           return { detected: true, confidence: 1.0 - (current.depth * 0.1), explanation: `Circular evasion detected at depth ${current.depth + 1}` };
-        }
-        if (!visited.has(edge.targetAccountId)) {
-           visited.add(edge.targetAccountId);
-           queue.push({ id: edge.targetAccountId, depth: current.depth + 1 });
-        }
-      }
-    }
-    
-    return { detected: false, confidence: 0, explanation: "" };
-  }
-
-  /**
-   * Detects Rapid Fan-Out (one to many in short timespan)
-   */
-  async detectRapidFanOut(accountId) {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentEdges = await GraphEdge.find({ sourceAccountId: accountId, timestamp: { $gte: oneHourAgo } });
-    
-    const uniqueTargets = new Set(recentEdges.map(e => e.targetAccountId));
-    
-    if (uniqueTargets.size > 10) {
-      return { detected: true, confidence: 0.9, explanation: `Rapid fan-out detected: ${uniqueTargets.size} unique recipients in 1 hour` };
-    }
-    return { detected: false, confidence: 0, explanation: "" };
-  }
-
-  /**
-   * Detects Smurfing (many small transactions structurally attempting to evade limits)
-   */
-  async detectSmurfing(sourceId, targetId, amount) {
-    const thresholdLimit = 10000;
-    // Check if amount is suspiciously close to limit
-    if (amount > 8500 && amount < 10000) {
-       // Look for previous transactions between these two today
-       const today = new Date();
-       today.setHours(0,0,0,0);
-       const previous = await GraphEdge.find({ sourceAccountId: sourceId, targetAccountId: targetId, timestamp: { $gte: today }});
-       
-       const total = previous.reduce((acc, edge) => acc + edge.amount, 0);
-       if (total + amount >= 10000) {
-          return { detected: true, confidence: 0.95, explanation: `Smurfing detected: structuring deposits to bypass $10k limit` };
-       }
-    }
-    return { detected: false, confidence: 0, explanation: "" };
   }
 
   /**
