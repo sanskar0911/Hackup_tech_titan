@@ -11,6 +11,8 @@ const transactionSchema = new mongoose.Schema(
     fraudScore: { type: Number, default: 0 },
     riskLevel: { type: String, enum: ["LOW", "MEDIUM", "HIGH"], default: "LOW" },
     reason: { type: String, default: "" },
+    bank_id: { type: String, default: "DEFAULT_BANK" },
+    decisionId: { type: mongoose.Schema.Types.ObjectId, ref: 'DecisionLog' }
   },
   { timestamps: true }
 );

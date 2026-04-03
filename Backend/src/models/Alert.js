@@ -14,6 +14,19 @@ const alertSchema = new mongoose.Schema(
     },
     userResponse: { type: String, default: "" },
     analystNotes: { type: String, default: "" },
+    risk_breakdown: [{
+      factor: String,
+      contribution: Number,
+      reason: String
+    }],
+    pattern_matches: [{
+      pattern: String,
+      confidence: Number
+    }],
+    decision_result: {
+      status: String,
+      decisionId: { type: mongoose.Schema.Types.ObjectId, ref: 'DecisionLog' }
+    }
   },
   { timestamps: true }
 );
