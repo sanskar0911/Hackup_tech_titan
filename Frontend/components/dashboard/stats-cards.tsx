@@ -17,6 +17,7 @@ interface StatCardProps {
 function StatCard({ title, value, change, changeLabel, icon: Icon, variant = "default" }: StatCardProps) {
   const [displayValue, setDisplayValue] = useState(0)
   const numericValue = typeof value === "number" ? value : parseInt(value.replace(/[^0-9]/g, ""))
+  const isCurrency = /volume|amount|balance|value/i.test(title)
 
   useEffect(() => {
     const duration = 1000
@@ -56,9 +57,9 @@ function StatCard({ title, value, change, changeLabel, icon: Icon, variant = "de
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">{title}</p>
             <p className="text-3xl font-bold text-card-foreground">
-              {typeof value === "string" && value.includes("$")
-                ? `$${displayValue.toLocaleString()}`
-                : displayValue.toLocaleString()}
+              {isCurrency
+                ? `₹${displayValue.toLocaleString("en-IN")}`
+                : displayValue.toLocaleString("en-IN")}
             </p>
             {change !== undefined && (
               <div className="flex items-center gap-1 text-sm">

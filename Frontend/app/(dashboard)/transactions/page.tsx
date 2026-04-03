@@ -87,7 +87,7 @@ export default function TransactionsPage() {
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Volume</p>
             <p className="text-2xl font-bold text-card-foreground">
-              ${totalVolume.toLocaleString()}
+              ₹{totalVolume.toLocaleString("en-IN")}
             </p>
           </CardContent>
         </Card>
@@ -198,7 +198,7 @@ export default function TransactionsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold">
-                      ${txn.amount.toLocaleString()}
+                      ₹{txn.amount.toLocaleString("en-IN")}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">

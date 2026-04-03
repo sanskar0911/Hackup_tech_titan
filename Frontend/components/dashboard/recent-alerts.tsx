@@ -24,8 +24,10 @@ const statusConfig = {
 export function RecentAlerts() {
   const ALERTS_STORAGE_KEY = "fraudshield_alerts_override_v1"
   const [alerts, setAlerts] = useState<Alert[]>(mockAlerts)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     try {
       const raw = localStorage.getItem(ALERTS_STORAGE_KEY)
       if (!raw) return
@@ -35,6 +37,27 @@ export function RecentAlerts() {
       // Ignore localStorage parsing issues; fall back to defaults
     }
   }, [])
+
+  if (!mounted) {
+    return (
+      <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-card-foreground">Recent Fraud Alerts</CardTitle>
+              <CardDescription>Latest detected suspicious activities</CardDescription>
+            </div>
+            <Badge variant="destructive" className="text-sm">
+              --
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48 w-full animate-pulse rounded-md bg-muted/40" />
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className="border-primary/25 bg-card shadow-[0_0_18px_rgba(59,130,246,0.18)]">
@@ -89,7 +112,7 @@ export function RecentAlerts() {
                     <p className="text-sm text-muted-foreground">{alert.description}</p>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span>Account: {alert.accountId}</span>
-                      {alert.amount && <span>Amount: ${alert.amount.toLocaleString()}</span>}
+                      {alert.amount && <span>Amount: ₹{alert.amount.toLocaleString("en-IN")}</span>}
                     </div>
                   </div>
                 </div>

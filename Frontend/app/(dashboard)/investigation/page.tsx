@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { mockAccounts, mockTransactions, type Account, type Transaction } from "@/lib/mock-data"
+import PathTracer from "@/components/investigation/path_tracer"
+import TransactionTimeline from "@/components/investigation/transaction_timeline"
 import {
   Search,
   Network,
   AlertTriangle,
   CheckCircle,
-  ArrowRight,
-  Clock,
   DollarSign,
   MapPin,
   Building2,
@@ -26,18 +26,18 @@ export default function InvestigationPage() {
   const [relatedTransactions, setRelatedTransactions] = useState<Transaction[]>([])
   const [isSearching, setIsSearching] = useState(false)
 
-  const handleSearch = () => {
-    if (!accountId.trim()) return
-    
+  const handleSearch = (id?: string) => {
+    const searchId = (id || accountId).trim()
+    if (!searchId) return
+
     setIsSearching(true)
-    
-    // Simulate search delay
+
     setTimeout(() => {
       const account = mockAccounts.find(
-        (a) => a.id.toLowerCase() === accountId.toLowerCase()
+        (a) => a.id.toLowerCase() === searchId.toLowerCase()
       )
       setSelectedAccount(account || null)
-      
+
       if (account) {
         const transactions = mockTransactions.filter(
           (t) => t.from === account.id || t.to === account.id
@@ -46,22 +46,29 @@ export default function InvestigationPage() {
       } else {
         setRelatedTransactions([])
       }
-      
+
       setIsSearching(false)
     }, 500)
   }
 
-  const getRiskColor = (score: number) => {
-    if (score >= 75) return "text-destructive"
-    if (score >= 50) return "text-warning"
-    return "text-success"
-  }
-
-  const getRiskBg = (score: number) => {
-    if (score >= 75) return "bg-destructive"
-    if (score >= 50) return "bg-warning"
-    return "bg-success"
-  }
+  const tracedSteps =
+    selectedAccount && relatedTransactions.length > 0
+      ? [...relatedTransactions]
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, 6)
+          .map((txn) => ({
+            from: txn.from,
+            to: txn.to,
+            amount: txn.amount,
+            riskScore: txn.riskScore,
+            reason:
+              txn.status === "flagged"
+                ? "Flagged by ML due to high anomaly and linked risk indicators."
+                : txn.status === "suspicious"
+                ? "Suspicious pattern detected from transaction behavior."
+                : "Normal transaction in traced path context.",
+          }))
+      : undefined
 
   return (
     <div className="space-y-6">
@@ -94,7 +101,7 @@ export default function InvestigationPage() {
                 className="pr-10"
               />
             </div>
-            <Button onClick={handleSearch} disabled={isSearching}>
+            <Button onClick={() => handleSearch()} disabled={isSearching}>
               {isSearching ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
@@ -124,12 +131,7 @@ export default function InvestigationPage() {
                     className="text-xs"
                     onClick={() => {
                       setAccountId(account.id)
-                      setSelectedAccount(account)
-                      setRelatedTransactions(
-                        mockTransactions.filter(
-                          (t) => t.from === account.id || t.to === account.id
-                        )
-                      )
+                      handleSearch(account.id)
                     }}
                   >
                     <AlertTriangle className="mr-1 h-3 w-3 text-destructive" />
@@ -143,9 +145,10 @@ export default function InvestigationPage() {
 
       {/* Results */}
       {selectedAccount && (
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-3">
           {/* Account Details */}
-          <Card className="border-border bg-card">
+          <Card className="border-border bg-card border-primary/25 shadow-[0_0_18px_rgba(59,130,246,0.18)]">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-card-foreground">Account Profile</CardTitle>
@@ -207,7 +210,7 @@ export default function InvestigationPage() {
                   Balance
                 </p>
                 <p className="text-2xl font-bold text-card-foreground">
-                  ${selectedAccount.balance.toLocaleString()}
+                  ₹{selectedAccount.balance.toLocaleString("en-IN")}
                 </p>
               </div>
 
@@ -219,7 +222,7 @@ export default function InvestigationPage() {
           </Card>
 
           {/* Risk Analysis */}
-          <Card className="border-border bg-card">
+          <Card className="border-border bg-card border-primary/25 shadow-[0_0_18px_rgba(59,130,246,0.18)]">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-card-foreground">
                 <TrendingUp className="h-5 w-5" />
@@ -270,10 +273,10 @@ export default function InvestigationPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Avg Transaction</span>
                   <span className="font-medium text-card-foreground">
-                    $
+                    ₹
                     {Math.round(
                       selectedAccount.balance / selectedAccount.transactionCount
-                    ).toLocaleString()}
+                    ).toLocaleString("en-IN")}
                   </span>
                 </div>
               </div>
@@ -307,65 +310,29 @@ export default function InvestigationPage() {
             </CardContent>
           </Card>
 
-          {/* Transaction Timeline */}
-          <Card className="border-border bg-card lg:col-span-1">
+          <Card className="border-border bg-card border-primary/25 shadow-[0_0_18px_rgba(59,130,246,0.18)]">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-card-foreground">
-                <Clock className="h-5 w-5" />
-                Transaction Timeline
-              </CardTitle>
-              <CardDescription>
-                {relatedTransactions.length} related transactions
-              </CardDescription>
+              <CardTitle className="text-card-foreground">Tracing Summary</CardTitle>
+              <CardDescription>{relatedTransactions.length} related transactions</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {relatedTransactions.length > 0 ? (
-                  relatedTransactions.map((txn) => (
-                    <div
-                      key={txn.id}
-                      className="relative flex gap-4 pb-4 last:pb-0"
-                    >
-                      <div className="absolute left-[7px] top-6 h-full w-px bg-border" />
-                      <div
-                        className={cn(
-                          "relative z-10 h-4 w-4 rounded-full",
-                          getRiskBg(txn.riskScore)
-                        )}
-                      />
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {txn.id}
-                          </span>
-                          <span className={cn("text-xs font-medium", getRiskColor(txn.riskScore))}>
-                            {txn.riskScore}%
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm">
-                          <span className="font-mono">{txn.from}</span>
-                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-mono">{txn.to}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-card-foreground">
-                            ${txn.amount.toLocaleString()}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {new Date(txn.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">
-                    No transactions found for this account
-                  </p>
-                )}
-              </div>
+            <CardContent className="text-sm text-muted-foreground space-y-2">
+              <p>
+                Path tracer uses recent account-linked transactions to build stepwise movement.
+              </p>
+              <p>
+                Timeline shows incoming/outgoing flow, risk score and status on each transaction.
+              </p>
             </CardContent>
           </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <PathTracer steps={tracedSteps} />
+            <TransactionTimeline
+              transactions={relatedTransactions}
+              accountId={selectedAccount.id}
+            />
+          </div>
         </div>
       )}
 
@@ -384,41 +351,3 @@ export default function InvestigationPage() {
     </div>
   )
 }
-const handleSearch = async () => {
-  if (!accountId.trim()) return;
-
-  setIsSearching(true);
-
-  try {
-    const res = await fetch(`http://localhost:5000/api/investigate/${accountId}`);
-    const data = await res.json();
-
-    setSelectedAccount({
-      id: data.accountId,
-      riskScore: data.summary.pathCount * 20,
-      isSuspicious: data.summary.hasCycle,
-      transactionCount: data.summary.pathCount,
-      name: "Detected Account",
-      type: "dynamic",
-      country: "Unknown",
-      balance: 0,
-      createdAt: new Date().toISOString(),
-    });
-
-    setRelatedTransactions(
-      data.suspiciousPaths.map((path, i) => ({
-        id: "TX" + i,
-        from: path[0],
-        to: path[path.length - 1],
-        amount: 50000,
-        riskScore: 80,
-        timestamp: new Date(),
-      }))
-    );
-
-  } catch (err) {
-    console.error(err);
-  }
-
-  setIsSearching(false);
-};
