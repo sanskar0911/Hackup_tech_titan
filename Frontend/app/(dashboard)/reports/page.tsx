@@ -65,6 +65,15 @@ function ReportsContent() {
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
 
   const [alertsOverride, setAlertsOverride] = useState<Alert[]>(mockAlerts)
+  const [mounted, setMounted] = useState(false)
+  const [reportId, setReportId] = useState("")
+  const [generatedAt, setGeneratedAt] = useState("")
+
+  useEffect(() => {
+    setMounted(true)
+    setReportId(`RPT-${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`)
+    setGeneratedAt(new Date().toLocaleDateString())
+  }, [])
 
   useEffect(() => {
     if (accountParam) {
@@ -566,13 +575,13 @@ function ReportsContent() {
                     ) : null}
                   </h2>
                   <p className="text-sm text-muted-foreground" suppressHydrationWarning>
-                    Generated on {new Date().toLocaleDateString()} | Period: Last{" "}
+                    Generated on {mounted ? generatedAt : "Loading..."} | Period: Last{" "}
                     {dateRange === "24h" ? "24 hours" : dateRange === "7d" ? "7 days" : dateRange === "30d" ? "30 days" : "90 days"}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Report ID</p>
-                  <p className="font-mono text-sm" suppressHydrationWarning>RPT-{Date.now().toString().slice(-8)}</p>
+                  <p className="font-mono text-sm" suppressHydrationWarning>{mounted ? reportId : "RPT-XXXXXXXX"}</p>
                 </div>
               </div>
             </div>
@@ -634,6 +643,12 @@ function ReportsContent() {
                         Country
                       </th>
                       <th className="px-4 py-2 text-left text-muted-foreground font-medium">
+                        Bank
+                      </th>
+                      <th className="px-4 py-2 text-left text-muted-foreground font-medium">
+                        Location
+                      </th>
+                      <th className="px-4 py-2 text-left text-muted-foreground font-medium">
                         Risk Score
                       </th>
                       <th className="px-4 py-2 text-left text-muted-foreground font-medium">
@@ -651,6 +666,8 @@ function ReportsContent() {
                         <td className="px-4 py-2">{account.name}</td>
                         <td className="px-4 py-2 capitalize">{account.type}</td>
                         <td className="px-4 py-2">{account.country}</td>
+                        <td className="px-4 py-2 text-xs font-medium">{account.bank}</td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground">{account.city}, {account.state}</td>
                         <td className="px-4 py-2">
                           <span className="text-destructive font-semibold">{account.riskScore}%</span>
                         </td>
