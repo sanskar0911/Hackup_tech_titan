@@ -741,7 +741,7 @@ function ReportsContent() {
                       <p className="text-sm font-semibold text-destructive">
                         Risk: {alert.riskScore}%
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground" suppressHydrationWarning>
                         {new Date(alert.timestamp).toLocaleString()}
                       </p>
                     </div>
