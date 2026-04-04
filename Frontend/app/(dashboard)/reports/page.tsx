@@ -407,6 +407,12 @@ function ReportsContent() {
                         Country
                       </th>
                       <th className="px-4 py-2 text-left text-muted-foreground font-medium">
+                        Bank
+                      </th>
+                      <th className="px-4 py-2 text-left text-muted-foreground font-medium">
+                        Location
+                      </th>
+                      <th className="px-4 py-2 text-left text-muted-foreground font-medium">
                         Risk Score
                       </th>
                       <th className="px-4 py-2 text-left text-muted-foreground font-medium">
@@ -424,6 +430,8 @@ function ReportsContent() {
                         <td className="px-4 py-2">{account.name}</td>
                         <td className="px-4 py-2 capitalize">{account.type}</td>
                         <td className="px-4 py-2">{account.country}</td>
+                        <td className="px-4 py-2 text-xs font-medium">{account.bank}</td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground">{account.city}, {account.state}</td>
                         <td className="px-4 py-2">
                           <span className="text-destructive font-semibold">{account.riskScore}%</span>
                         </td>
