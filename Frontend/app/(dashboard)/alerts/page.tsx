@@ -31,7 +31,7 @@ import {
   Eye,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-
+import { toast } from "sonner"
 export interface Alert {
   _id?: string;
   id: string;
@@ -184,12 +184,14 @@ export default function AlertsPage() {
       }
 
       setEmailStatus("Email sent successfully!")
+      toast.success("Email sent successfully!")
       
       // Clear fields after success
       setEmailSubject("")
       setEmailBody("")
     } catch {
       setEmailStatus("Failed to send email. Check backend server and credentials.")
+      toast.error("Failed to send email. Check backend server and credentials.")
     } finally {
       setEmailSending(false)
     }

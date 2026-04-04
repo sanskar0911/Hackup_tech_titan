@@ -85,6 +85,8 @@ export function TransactionChart() {
                   borderRadius: "8px",
                   color: "var(--card-foreground)",
                 }}
+                itemStyle={{ color: "var(--card-foreground)" }}
+                labelStyle={{ color: "var(--card-foreground)" }}
               />
               <Area
                 type="monotone"
@@ -158,6 +160,8 @@ export function RiskDistributionChart() {
                   borderRadius: "8px",
                   color: "var(--card-foreground)",
                 }}
+                itemStyle={{ color: "var(--card-foreground)" }}
+                labelStyle={{ color: "var(--card-foreground)" }}
               />
               <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                 {riskDistributionData.map((entry, index) => (
@@ -219,6 +223,8 @@ export function FraudPieChart() {
                   borderRadius: "8px",
                   color: "var(--card-foreground)",
                 }}
+                itemStyle={{ color: "var(--card-foreground)" }}
+                labelStyle={{ color: "var(--card-foreground)" }}
               />
             </PieChart>
           </ResponsiveContainer>

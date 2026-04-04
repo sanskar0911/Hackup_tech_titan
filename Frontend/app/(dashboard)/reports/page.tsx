@@ -172,31 +172,267 @@ function ReportsContent() {
   const printUserReport = (accountId: string) => {
     const account = mockAccounts.find((a) => a.id === accountId)
     if (!account) return
+    
+    const accountTransactions = mockTransactions.filter((t) => t.from === accountId || t.to === accountId)
+    const suspiciousCount = accountTransactions.filter(t => t.status !== "normal").length
     const alerts = alertsOverride.filter((a) => a.accountId === accountId)
+    const openAlertsCount = alerts.filter(a => a.status === 'open').length
+
+    const generationDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+    const reportRef = `RPT-${Date.now().toString().slice(-8)}`
+
+    const getRiskLevel = (score: number) => {
+      if (score >= 80) return { label: 'CRITICAL', color: '#ef4444', bg: '#fee2e2' }
+      if (score >= 60) return { label: 'HIGH', color: '#f97316', bg: '#ffedd5' }
+      if (score >= 40) return { label: 'MEDIUM', color: '#eab308', bg: '#fef9c3' }
+      return { label: 'LOW', color: '#22c55e', bg: '#dcfce7' }
+    }
+
+    const accountRisk = getRiskLevel(account.riskScore)
+
+    const alertsHtml = alerts.length === 0 
+      ? '<p style="color: #64748b; font-style: italic; font-size: 11px;">No fraud alerts on record for this account.</p>'
+      : alerts.map(a => {
+          const aRisk = getRiskLevel(a.riskScore);
+          return `
+          <div class="alert-card ${a.status}">
+            <div class="alert-left">
+              <div class="alert-title-row">
+                <span class="alert-title">${a.type.replace(/_/g, ' ')}</span>
+                <span class="badge" style="background: ${aRisk.bg}; color: ${aRisk.color};">${aRisk.label}</span>
+                <span class="badge" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; text-transform: capitalize;">${a.status}</span>
+              </div>
+              <p class="alert-desc">${a.description}</p>
+              <p class="alert-meta">#${a.id} &middot; ${a.accountId} &middot; ${new Date(a.timestamp).toLocaleString('en-GB')}</p>
+            </div>
+            <div class="alert-right">
+              <div class="alert-score" style="color: ${aRisk.color}">${a.riskScore}%</div>
+              <div class="alert-score-label">Risk Score</div>
+            </div>
+          </div>
+          `;
+        }).join('');
+
     const html = `
-      <html>
-        <head><title>Report ${account.id}</title></head>
-        <body style="font-family: Arial, sans-serif; padding: 24px;">
-          <h2>User Report: ${account.name} (${account.id})</h2>
-          <p><strong>Emails:</strong> ${(account.contactEmails || []).join(", ")}</p>
-          <p><strong>Risk Score:</strong> ${account.riskScore}%</p>
-          <p><strong>Country:</strong> ${account.country}</p>
-          <h3>Recent Alerts</h3>
-          <ul>
-            ${alerts
-              .slice(0, 6)
-              .map((a) => `<li>${a.id} - ${a.type.replace(/_/g, " ")} - ${a.riskScore}% - ${a.status}</li>`)
-              .join("")}
-          </ul>
-        </body>
-      </html>`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Report - ${account.id}</title>
+  <style>
+    @page { 
+      margin: 20mm 18mm; 
+      size: A4; 
+    }
+    body { 
+      font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+      margin: 0; 
+      color: #1a1a1a;
+      line-height: 1.5;
+      font-size: 12px;
+    }
+    * { box-sizing: border-box; }
+    
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e5e5e5; padding-bottom: 12px; margin-bottom: 12px; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo-icon { width: 32px; height: 32px; color: #1e3a8a; }
+    .brand-name { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0; line-height: 1; }
+    .brand-sub { font-size: 10px; font-weight: 600; font-variant: small-caps; color: #64748b; margin: 0; letter-spacing: 1px; }
+    .header-right { text-align: right; }
+    .header-division { font-size: 11px; font-weight: 700; color: #1e3a8a; margin: 0; letter-spacing: 0.5px; }
+    .header-contact { font-size: 10px; color: #64748b; margin: 2px 0 0 0; }
+
+    .banner { background-color: #fef2f2; color: #dc2626; text-align: center; font-weight: 700; font-size: 11px; padding: 6px; border: 1px solid #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; }
+    
+    .id-block { display: flex; justify-content: space-between; background: #f8fafc; padding: 16px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
+    .id-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px 0; }
+    .id-sub { font-size: 11px; color: #475569; margin: 0 0 8px 0; }
+    .id-subject { font-size: 13px; font-weight: 600; color: #1e40af; margin: 0; }
+    .id-meta { text-align: right; font-size: 11px; color: #475569; display: flex; flex-direction: column; gap: 4px; }
+    .ref-val { font-family: monospace; font-size: 12px; color: #0f172a; font-weight: 600; }
+    
+    .section-title { font-size: 14px; font-weight: 700; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin: 0 0 12px 0; color: #334155; text-transform: capitalize; }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+    .stat-box { border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; background: #ffffff; }
+    .stat-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .stat-val { font-size: 20px; font-weight: 700; color: #0f172a; }
+    .stat-val.amber { color: #d97706; }
+    .stat-val.red { color: #dc2626; }
+    
+    .verdict-bar { display: flex; justify-content: space-between; align-items: center; background: ${accountRisk.bg}; border: 1px solid ${accountRisk.color}; border-radius: 6px; padding: 12px 16px; margin-bottom: 24px; }
+    .verdict-left { font-size: 13px; font-weight: 700; color: ${accountRisk.color}; }
+    .verdict-right { font-size: 16px; font-weight: 800; color: ${accountRisk.color}; }
+
+    .table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 11px; }
+    .table th { background: #f1f5f9; color: #475569; font-weight: 600; text-align: left; padding: 10px; border-bottom: 2px solid #cbd5e1; }
+    .table td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
+    .table tr:nth-child(even) { background: #f8fafc; }
+    .mono-cell { font-family: monospace; font-size: 12px; color: #2563eb; font-weight: 600; }
+    .badge { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
+
+    .alerts-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .alert-card { border: 1px solid #e2e8f0; border-left: 4px solid #94a3b8; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: stretch; background: #fff; }
+    .alert-card.open { border-left-color: #ef4444; }
+    .alert-card.investigating { border-left-color: #f59e0b; }
+    .alert-card.resolved { border-left-color: #10b981; }
+    .alert-left { display: flex; flex-direction: column; gap: 4px; }
+    .alert-title-row { display: flex; align-items: center; gap: 8px; }
+    .alert-title { font-size: 13px; font-weight: 700; color: #0f172a; text-transform: capitalize; }
+    .alert-desc { font-size: 11px; color: #64748b; margin: 2px 0 6px 0; }
+    .alert-meta { font-size: 10px; color: #94a3b8; font-family: monospace; }
+    .alert-right { display: flex; flex-direction: column; justify-content: center; align-items: flex-end; text-align: right; min-width: 80px; }
+    .alert-score { font-size: 18px; font-weight: 800; color: #dc2626; line-height: 1; }
+    .alert-score-label { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+    .compliance-notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 24px; }
+    .comp-cell { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; }
+    .comp-label { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .comp-val { font-size: 11px; font-weight: 600; color: #1e293b; }
+
+    .footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #cbd5e1; padding-top: 8px; display: flex; justify-content: space-between; font-size: 9px; color: #94a3b8; background: #fff; }
+    
+    @media print {
+      .footer { position: fixed; bottom: 0; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="header">
+    <div class="header-left">
+      <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      </svg>
+      <div>
+        <h1 class="brand-name">FraudShield</h1>
+        <p class="brand-sub">AI Detection System</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <p class="header-division">FRAUD INTELLIGENCE DIVISION</p>
+      <p class="header-contact">compliance@fraudshield.ai &nbsp;|&nbsp; +91-22-6700-0000</p>
+    </div>
+  </div>
+
+  <div class="banner">
+    CONFIDENTIAL — For Authorised Personnel Only — Internal Use Only
+  </div>
+
+  <div class="id-block">
+    <div>
+      <h2 class="id-title">Executive Summary</h2>
+      <p class="id-sub">Period: Last 7 Days &nbsp;&middot;&nbsp; Generated: ${generationDate}</p>
+      <p class="id-subject">Subject Account: ${account.id} — ${account.name}</p>
+    </div>
+    <div class="id-meta">
+      <div>Report Reference: <span class="ref-val">${reportRef}</span></div>
+      <div>Prepared by: Alex Chen, Fraud Analyst</div>
+    </div>
+  </div>
+
+  <h3 class="section-title">01 &mdash; Threat Assessment</h3>
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div class="stat-label">Total Transactions</div>
+      <div class="stat-val">${accountTransactions.length}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Suspicious Activity</div>
+      <div class="stat-val amber">${suspiciousCount}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">High-Risk Accounts</div>
+      <div class="stat-val red">${account.riskScore >= 75 ? 1 : 0}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Open Fraud Alerts</div>
+      <div class="stat-val red">${openAlertsCount}</div>
+    </div>
+  </div>
+  
+  <div class="verdict-bar">
+    <div class="verdict-left">Overall Assessment &rarr; ${account.riskScore >= 75 ? 'HIGH RISK — IMMEDIATE ACTION REQUIRED' : account.riskScore >= 40 ? 'ELEVATED RISK — ENHANCED MONITORING' : 'LOW RISK — ROUTINE REVIEW'}</div>
+    <div class="verdict-right">${account.riskScore}%</div>
+  </div>
+
+  <h3 class="section-title">02 &mdash; Account Details</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Account ID</th>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Location</th>
+        <th>Risk Score</th>
+        <th>Level</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono-cell">${account.id}</td>
+        <td>${account.name}</td>
+        <td style="text-transform: capitalize;">${account.type || 'Standard'}</td>
+        <td>${account.country || 'IN'}</td>
+        <td style="color: ${accountRisk.color}; font-weight: 700;">${account.riskScore}%</td>
+        <td>
+          <span class="badge" style="background: ${accountRisk.bg}; color: ${accountRisk.color}; border: 1px solid ${accountRisk.color};">
+            ${accountRisk.label}
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 class="section-title">03 &mdash; Fraud Alerts Log</h3>
+  <div class="alerts-list">
+    ${alertsHtml}
+  </div>
+
+  <h3 class="section-title">04 &mdash; Compliance Notes</h3>
+  <div class="compliance-notes">
+    <div class="comp-cell">
+      <span class="comp-label">Regulatory Reference</span>
+      <span class="comp-val">RBI Circular RBI/2023-24/73</span>
+    </div>
+    <div class="comp-cell">
+      <span class="comp-label">Escalation Threshold</span>
+      <span class="comp-val">Risk Score &ge; 80% &rarr; CCO</span>
+    </div>
+    <div class="comp-cell">
+      <span class="comp-label">Response SLA</span>
+      <span class="comp-val">48 hours for flagged accounts</span>
+    </div>
+    <div class="comp-cell">
+      <span class="comp-label">Classification</span>
+      <span class="comp-val">Confidential — Internal Use Only</span>
+    </div>
+    <div class="comp-cell">
+      <span class="comp-label">Retention Period</span>
+      <span class="comp-val">Minimum 5 years (PMLA)</span>
+    </div>
+    <div class="comp-cell">
+      <span class="comp-label">Next Review</span>
+      <span class="comp-val">11 April 2026</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Generated by FraudShield AI Detection System &mdash; ${generationDate}</span>
+    <span>Confidential &mdash; Internal Use Only &nbsp;|&nbsp; Page 1 of 1</span>
+  </div>
+
+</body>
+</html>
+    `;
     const popup = window.open("", "_blank", "width=900,height=700")
     if (!popup) return
     popup.document.open()
     popup.document.write(html)
     popup.document.close()
     popup.focus()
-    popup.print()
+    setTimeout(() => popup.print(), 250)
   }
 
   return (
@@ -329,14 +565,14 @@ function ReportsContent() {
                       </span>
                     ) : null}
                   </h2>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground" suppressHydrationWarning>
                     Generated on {new Date().toLocaleDateString()} | Period: Last{" "}
                     {dateRange === "24h" ? "24 hours" : dateRange === "7d" ? "7 days" : dateRange === "30d" ? "30 days" : "90 days"}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Report ID</p>
-                  <p className="font-mono text-sm">RPT-{Date.now().toString().slice(-8)}</p>
+                  <p className="font-mono text-sm" suppressHydrationWarning>RPT-{Date.now().toString().slice(-8)}</p>
                 </div>
               </div>
             </div>
