@@ -27,7 +27,12 @@ export default function InvestigationPage() {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
   const [relatedTransactions, setRelatedTransactions] = useState<Transaction[]>([])
   const [isSearching, setIsSearching] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const id = searchParams.get("id")
@@ -275,10 +280,10 @@ export default function InvestigationPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Account Age</span>
                     <span className="font-medium text-card-foreground">
-                      {Math.floor(
+                      {mounted ? Math.floor(
                         (Date.now() - new Date(selectedAccount.createdAt).getTime()) /
                         (1000 * 60 * 60 * 24)
-                      )}{" "}
+                      ) : "--"}{" "}
                       days
                     </span>
                   </div>

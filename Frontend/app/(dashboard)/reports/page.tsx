@@ -65,6 +65,15 @@ function ReportsContent() {
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
 
   const [alertsOverride, setAlertsOverride] = useState<Alert[]>(mockAlerts)
+  const [mounted, setMounted] = useState(false)
+  const [reportId, setReportId] = useState("")
+  const [generatedAt, setGeneratedAt] = useState("")
+
+  useEffect(() => {
+    setMounted(true)
+    setReportId(`RPT-${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`)
+    setGeneratedAt(new Date().toLocaleDateString())
+  }, [])
 
   useEffect(() => {
     if (accountParam) {
@@ -330,13 +339,13 @@ function ReportsContent() {
                     ) : null}
                   </h2>
                   <p className="text-sm text-muted-foreground">
-                    Generated on {new Date().toLocaleDateString()} | Period: Last{" "}
+                    Generated on {mounted ? generatedAt : "Loading..."} | Period: Last{" "}
                     {dateRange === "24h" ? "24 hours" : dateRange === "7d" ? "7 days" : dateRange === "30d" ? "30 days" : "90 days"}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Report ID</p>
-                  <p className="font-mono text-sm">RPT-{Date.now().toString().slice(-8)}</p>
+                  <p className="font-mono text-sm">{mounted ? reportId : "RPT-XXXXXXXX"}</p>
                 </div>
               </div>
             </div>

@@ -72,7 +72,7 @@ export function UserNavbar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 pr-1 pl-1 rounded-full hover:bg-accent">
                 <Avatar className="h-8 w-8 border border-border">
-                  <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                  <AvatarFallback className="bg-blue-600 text-white text-xs font-bold">
                     RK
                   </AvatarFallback>
                 </Avatar>
